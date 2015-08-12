@@ -61,7 +61,7 @@ type CoreProgram = Program Name
 -- its arguments,
 -- and its body
 type ScDefn a = (Name, [a], Expr a)
-type CoreScDenf = ScDefn Name
+type CoreScDefn = ScDefn Name
 
 -- representation of the program:
 --    main = double 21 ;
@@ -92,3 +92,72 @@ preludeDefs
       -- twice f = compose f f ;
       ("twice", ["f"], EAp (EAp (EVar "compose") (EVar "f")) (EVar "f"))
     ]
+
+-- Section 1.5: a pretty printer
+
+iNil     :: Iseq -- the empty Iseq
+iStr     :: String -> Iseq
+iAppend  :: Iseq -> Iseq -> Iseq -- append two iseqs
+iNewline :: Iseq                 -- newline with indentation
+iIndent  :: Iseq -> Iseq         -- indent an iseq
+iDisplay :: Iseq -> String       -- turn an iseq into a string
+
+pprExpr :: CoreExpr -> Iseq
+pprExpr (EVar v) = iStr v
+pprExpr (ENum n) = iStr (show n)
+pprExpr (EAp e1 e2) = (pprExpr e1) `iAppend` (iStr " ") `iAppend` (pprExpr e2)
+pprExpr (ELet isrec defns expr)
+  = iConcat [ iStr keyword, iNewline,
+              iStr "  ", iIndent (pprDefns defns), iNewline,
+              iStr "in ", pprExpr expr ]
+    where
+      keyword | not isrec = "let"
+              | isrec     = "letrec"
+
+pprDefns :: [(Name,CoreExpr)] -> Iseq
+pprDefns defns = iInterleave sep (map pprDefn defns)
+                 where
+                   sep = iConcat [ iStr ";", iNewline ]
+pprDefn :: (Name, CoreExpr) -> Iseq
+pprDefn (name, expr)
+  = iConcat [ iStr name, iStr " = ", iIndent (pprExpr expr) ]
+
+iConcat :: [Iseq] -> Iseq
+iConcat [] = iNil
+iConcat (s : seqs) = iAppend s (iConcat seqs)
+
+iInterleave :: Iseq -> [Iseq] -> Iseq
+iInterleave sep []         = iNil
+iInterleave seq (s : [])   = s
+iInterleave sep (s : seqs) = s `iAppend` sep `iAppend` (iInterleave sep seqs)
+
+pprScDefn :: CoreScDefn -> Iseq
+pprScDefn (name, vars, body)
+  = iConcat [ iStr name, iStr " = ", pprExpr(body) ]
+
+pprProgram :: CoreProgram -> Iseq
+pprProgram prog = iInterleave iNewline (map pprScDefn prog)
+
+pprint prog = iDisplay (pprProgram prog)
+
+-- Section 1.5.3: implement iseq
+
+data Iseq = INil
+          | IStr String
+          | IAppend Iseq Iseq
+
+iNil              = INil
+iAppend seq1 seq2 = IAppend seq1 seq2
+iStr str          = IStr str
+
+-- ignore indentation
+iIndent seq = seq
+iNewline    = IStr "\n"
+
+flatten :: [Iseq] -> String
+flatten [] = ""
+flatten (INil : seqs) = flatten seqs
+flatten (IStr s : seqs) = s ++ (flatten seqs)
+flatten (IAppend seq1 seq2 : seqs) = flatten (seq1 : seq2 : seqs)
+
+iDisplay seq = flatten [seq]
