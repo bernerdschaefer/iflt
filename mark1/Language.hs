@@ -102,10 +102,15 @@ iNewline :: Iseq                 -- newline with indentation
 iIndent  :: Iseq -> Iseq         -- indent an iseq
 iDisplay :: Iseq -> String       -- turn an iseq into a string
 
+pprAExpr :: CoreExpr -> Iseq
+pprAExpr e
+  | isAtomicExpr e = pprExpr e
+  | otherwise      = iConcat [ iStr "(", pprExpr e, iStr ")" ]
+
 pprExpr :: CoreExpr -> Iseq
 pprExpr (EVar v) = iStr v
 pprExpr (ENum n) = iStr (show n)
-pprExpr (EAp e1 e2) = (pprExpr e1) `iAppend` (iStr " ") `iAppend` (pprExpr e2)
+pprExpr (EAp e1 e2) = (pprExpr e1) `iAppend` (iStr " ") `iAppend` (pprAExpr e2)
 pprExpr (ELet isrec defns expr)
   = iConcat [ iStr keyword, iNewline,
               iStr "  ", iIndent (pprDefns defns), iNewline,
@@ -113,6 +118,9 @@ pprExpr (ELet isrec defns expr)
     where
       keyword | not isrec = "let"
               | isrec     = "letrec"
+-- TODO: EConstr
+-- TODO: ECase
+-- TODO: ELam
 
 pprDefns :: [(Name,CoreExpr)] -> Iseq
 pprDefns defns = iInterleave sep (map pprDefn defns)
