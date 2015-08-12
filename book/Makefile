@@ -301,103 +301,103 @@ lambda6.lhs: lambda.src lambda-tutor.src
 #						#
 #################################################
 
-Language.lhs: language.src language-tutor.src
-	cat language.src language-tutor.src | ./make-version 3 H > $@
+Language.lhs: language.src
+	cat language.src | ./make-version 3 H > $@
 
 
 Utils.lhs: utils.src
 	cat utils.src | ./make-version 3 H > $@
 
 
-Template1.lhs: template.src template-tutor.src
-	cat template.src template-tutor.src | ./make-version 1 H > $@
+Template1.lhs: template.src
+	cat template.src | ./make-version 1 H > $@
 
-Template2.lhs: template.src template-tutor.src
-	cat template.src template-tutor.src | ./make-version 2 H > $@
+Template2.lhs: template.src
+	cat template.src | ./make-version 2 H > $@
 
-Template3.lhs: template.src template-tutor.src
-	cat template.src template-tutor.src | ./make-version 3 H > $@
+Template3.lhs: template.src
+	cat template.src | ./make-version 3 H > $@
 
-Template4.lhs: template.src template-tutor.src
-	cat template.src template-tutor.src | ./make-version 4 H > $@
+Template4.lhs: template.src
+	cat template.src | ./make-version 4 H > $@
 
-Template5.lhs: template.src template-tutor.src
-	cat template.src template-tutor.src | ./make-version 5 H > $@
+Template5.lhs: template.src
+	cat template.src | ./make-version 5 H > $@
 
-Tim.lhs:	tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version $(VERSION) H >$@
+Tim.lhs:	tim.src
+	cat tim.src | ./make-version $(VERSION) H >$@
 
-Tim1.lhs: tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version 1 H >$@
+Tim1.lhs: tim.src
+	cat tim.src | ./make-version 1 H >$@
 
-Tim2.lhs: tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version 2 H >$@
+Tim2.lhs: tim.src
+	cat tim.src | ./make-version 2 H >$@
 
-Tim3.lhs: tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version 3 H >$@
+Tim3.lhs: tim.src
+	cat tim.src | ./make-version 3 H >$@
 
-Tim4.lhs: tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version 4 H >$@
+Tim4.lhs: tim.src
+	cat tim.src | ./make-version 4 H >$@
 
-Tim5.lhs: tim.src tim-tutor.src
-	cat tim.src tim-tutor.src | ./make-version 5 H >$@
+Tim5.lhs: tim.src
+	cat tim.src | ./make-version 5 H >$@
 
-Gm1.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 1 H > $@
+Gm1.lhs:	gm.src
+	cat gm.src | ./make-version 1 H > $@
 
-Gm2.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 2 H > $@
+Gm2.lhs:	gm.src
+	cat gm.src | ./make-version 2 H > $@
 	cp GM.hi GM2.hi
 
-Gm3.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 3 H > $@
+Gm3.lhs:	gm.src
+	cat gm.src | ./make-version 3 H > $@
 	cp GM.hi GM3.hi
 
-Gm4.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 4 H > $@
+Gm4.lhs:	gm.src
+	cat gm.src | ./make-version 4 H > $@
 	cp GM.hi GM4.hi
 
-Gm5.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 5 H > $@
+Gm5.lhs:	gm.src
+	cat gm.src | ./make-version 5 H > $@
 	cp GM.hi GM5.hi
 
-Gm6.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 6 H > $@
+Gm6.lhs:	gm.src
+	cat gm.src | ./make-version 6 H > $@
 	cp GM.hi GM6.hi
 
-Gm7.lhs:	gm.src gm-tutor.src
-	cat gm.src gm-tutor.src | ./make-version 7 H > $@
+Gm7.lhs:	gm.src
+	cat gm.src | ./make-version 7 H > $@
 	cp GM.hi GM7.hi
 
-Pargm1.lhs: pargm.src pargm-tutor.src
-	cat pargm.src pargm-tutor.src | ./make-version 1 H > $@
+Pargm1.lhs: pargm.src
+	cat pargm.src | ./make-version 1 H > $@
 
-Pargm2.lhs: pargm.src pargm-tutor.src
-	cat pargm.src pargm-tutor.src | ./make-version 2 H > $@
+Pargm2.lhs: pargm.src
+	cat pargm.src | ./make-version 2 H > $@
 
-Pargm3.lhs: pargm.src pargm-tutor.src
-	cat pargm.src pargm-tutor.src | ./make-version 3 H n> $@
+Pargm3.lhs: pargm.src
+	cat pargm.src | ./make-version 3 H n> $@
 
-Pargm4.lhs: pargm.src pargm-tutor.src
-	cat pargm.src pargm-tutor.src | ./make-version 4 H > $@
+Pargm4.lhs: pargm.src
+	cat pargm.src | ./make-version 4 H > $@
 
 Lambda1.lhs: lambda.src
 	cat lambda.src | ./make-version 1 H > $@
 
-Lambda2.lhs: lambda.src lambda-tutor.src
-	cat lambda.src lambda-tutor.src | ./make-version 2 H > $@
+Lambda2.lhs: lambda.src
+	cat lambda.src | ./make-version 2 H > $@
 
-Lambda3.lhs: lambda.src lambda-tutor.src
-	cat lambda.src lambda-tutor.src | ./make-version 3 H > $@
+Lambda3.lhs: lambda.src
+	cat lambda.src | ./make-version 3 H > $@
 
-Lambda4.lhs: lambda.src lambda-tutor.src
-	cat lambda.src lambda-tutor.src | ./make-version 4 H > $@
+Lambda4.lhs: lambda.src
+	cat lambda.src | ./make-version 4 H > $@
 
-Lambda5.lhs: lambda.src lambda-tutor.src
-	cat lambda.src lambda-tutor.src | ./make-version 5 H > $@
+Lambda5.lhs: lambda.src
+	cat lambda.src | ./make-version 5 H > $@
 
-Lambda6.lhs: lambda.src lambda-tutor.src
-	cat lambda.src lambda-tutor.src | ./make-version 6 H > $@
+Lambda6.lhs: lambda.src
+	cat lambda.src | ./make-version 6 H > $@
 
 
 
