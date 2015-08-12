@@ -153,19 +153,27 @@ pprint prog = iDisplay (pprProgram prog)
 data Iseq = INil
           | IStr String
           | IAppend Iseq Iseq
+          | IIndent Iseq
+          | INewline
 
 iNil              = INil
 iAppend seq1 seq2 = IAppend seq1 seq2
 iStr str          = IStr str
+iIndent seq       = IIndent seq
+iNewline          = INewline
 
--- ignore indentation
-iIndent seq = seq
-iNewline    = IStr "\n"
+flatten :: Int               -- current column (0 for first)
+            -> [(Iseq, Int)] -- work list
+            -> String        -- result
+flatten col [] = ""
+flatten col ((INil, _) : seqs) = flatten col seqs
+flatten col (((IStr s), _) : seqs) = s ++ (flatten col seqs)
+flatten col (((IAppend seq1 seq2), _) : seqs) = flatten col ((seq1, col) : (seq2, col) : seqs)
+flatten col ((INewline, indent) : seqs)
+  = '\n' : (space indent) ++ (flatten indent seqs)
+flatten col ((IIndent seq, indent) : seqs)
+  = flatten col ((seq, col) : seqs)
 
-flatten :: [Iseq] -> String
-flatten [] = ""
-flatten (INil : seqs) = flatten seqs
-flatten (IStr s : seqs) = s ++ (flatten seqs)
-flatten (IAppend seq1 seq2 : seqs) = flatten (seq1 : seq2 : seqs)
+iDisplay seq = flatten 0 [(seq, 0)]
 
-iDisplay seq = flatten [seq]
+space n = take n (repeat ' ')
