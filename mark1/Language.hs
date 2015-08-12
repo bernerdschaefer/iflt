@@ -1,5 +1,7 @@
 module Language where
 
+-- Section 1.3: Data types
+
 data Expr a
   = EVar Name -- Variables
   | ENum Int  -- Numbers
@@ -69,3 +71,24 @@ exampleSection13 =
   [("main", [], (EAp (EVar "double") (ENum 21))),
    ("double", ["x"], (EAp (EAp (EVar "+") (EVar "x")) (EVar "x")))
   ]
+
+-- Section 1.4: a small standard prelude
+
+preludeDefs :: CoreProgram
+preludeDefs
+  = [
+      -- I x = x ;
+      ("I", ["x"], EVar "x"),
+      -- K x y = x ;
+      ("K", ["x", "y"], EVar "x"),
+       -- K1 x y = y ;
+      ("K1", ["x", "y"], EVar "y"),
+      -- S f g x = f x (g x) ;
+      ("S", ["f", "g", "x"], EAp (EAp (EVar "f") (EVar "x"))
+                                 (EAp (EVar "g") (EVar "x"))),
+      -- compose f g x = f (g x) ;
+      ("compose", ["f", "g", "x"], EAp (EVar "f")
+                                       (EAp (EVar "g") (EVar "x"))),
+      -- twice f = compose f f ;
+      ("twice", ["f"], EAp (EAp (EVar "compose") (EVar "f")) (EVar "f"))
+    ]
