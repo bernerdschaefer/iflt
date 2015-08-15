@@ -189,3 +189,46 @@ exampleSection154 = pprint [
   ("x", [], (ELet recursive [("a", (ENum 2)), ("b", (ENum 3))]
               (EAp (EAp (EVar "+") (EVar "a")) (EVar "b"))))
   ]
+
+-- Section 1.6: Parser for Core Language
+
+-- lex input into tokens
+clex :: String -> [Token]
+
+-- perform syntactic analysis of tokens
+-- syntax :: [Token] -> CoreProgram
+
+-- parse :: String -> CoreProgram
+-- parse = syntax . clex -- why not syntax . clex . read ?
+
+type Token = String -- a token is a non-empty string
+
+clex (c:cs) | isWhitespace c = clex cs
+
+clex (c:cs) | isAlpha c = varToken : clex restCs
+      where
+        varToken = c : takeWhile isIdChar cs
+        restCs = dropWhile isIdChar cs
+
+clex (c:cs) | isDigit c = numToken : clex restCs
+      where
+        numToken = c : takeWhile isDigit cs
+        restCs = dropWhile isDigit cs
+
+clex (c:cs) = [c] : clex cs
+
+clex [] = []
+
+isWhitespace ' '  = True
+isWhitespace '\r' = True
+isWhitespace '\n' = True
+isWhitespace '\t' = True
+isWhitespace _    = False
+
+isDigit x = x >= '0' && x <= '9'
+
+isAlpha x = x >= 'a' && x <= 'z' ||
+            x >= 'A' && x <= 'Z'
+
+isIdChar x
+  = isAlpha x || isDigit x || (x == '_')
