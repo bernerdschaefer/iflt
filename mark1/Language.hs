@@ -1,4 +1,5 @@
 module Language where
+import Data.Char
 
 -- Section 1.3: Data types
 
@@ -225,11 +226,6 @@ isWhitespace '\n' = True
 isWhitespace '\t' = True
 isWhitespace _    = False
 
-isDigit x = x >= '0' && x <= '9'
-
-isAlpha x = x >= 'a' && x <= 'z' ||
-            x >= 'A' && x <= 'Z'
-
 isIdChar x
   = isAlpha x || isDigit x || (x == '_')
 
@@ -247,17 +243,21 @@ type Parser a = [Token] -> [(a, [Token])]
 -- which recognizes tokens containing that string,
 -- returning the same string as the value.
 pLit :: String -> Parser String
-pLit s (tok:toks)
-  | s == tok  = [(s, toks)]
-  | otherwise = []
-pLit s [] = []
+pLit s = pSat (== s)
 
 -- pVar decides whether a token is a variable
 pVar :: Parser String
-pVar [] = []
-pVar (tok:toks)
-  | isAlpha (head tok) = [(tok, toks)]
-  | otherwise          = []
+pVar = pSat isVar
+         where
+           isVar tok
+             | tok `elem` keywords = False
+             | otherwise           = isAlpha $ head tok
+
+pNum :: Parser Int
+pNum = pSat (all isDigit) `pApply` (read)
+
+keywords :: [String]
+keywords = ["let", "letrec", "case", "in", "of", "Pack"]
 
 -- pAlt combines two parsers by calling each
 -- and combining their parses.
@@ -322,3 +322,13 @@ pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
 pOneOrMoreWithSep p1 p2
   = pOneOrMore (pThen keepFirst p1 p2) `pAlt` (pEmpty [])
     where keepFirst v _ = v
+
+-- pSat generalizes pLit and pVar
+-- to a parser constructed from
+-- a function which checks
+-- that a string satisfies a given condition
+pSat :: (String -> Bool) -> Parser String
+pSat f [] = []
+pSat f (c:cs)
+  | f c       = [(c, cs)]
+  | otherwise = []
