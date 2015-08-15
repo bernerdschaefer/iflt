@@ -293,6 +293,32 @@ pThen3 combine p1 p2 p3 toks
 pThen4 :: (a -> b -> c -> d -> e) -> Parser a -> Parser b -> Parser c -> Parser d -> Parser e
 pThen4 combine p1 p2 p3 p4 toks
   = [ (combine v1 v2 v3 v4, toks4) | (v1, toks1) <- p1 toks,
-                                      (v2, toks2) <- p2 toks1,
-                                      (v3, toks3) <- p3 toks2,
-                                      (v4, toks4) <- p4 toks3 ]
+                                     (v2, toks2) <- p2 toks1,
+                                     (v3, toks3) <- p3 toks2,
+                                     (v4, toks4) <- p4 toks3 ]
+
+pGreetings :: Parser [(String, String)]
+pGreetings = pZeroOrMore pGreeting
+
+pGreetingsN :: Parser Int
+pGreetingsN = (pZeroOrMore pGreeting) `pApply` length
+
+-- an empty parser always succeeds,
+-- returning the value provided
+-- and consuming no tokens
+pEmpty :: a -> Parser a
+pEmpty v toks = [(v, toks)]
+
+pZeroOrMore :: Parser a -> Parser [a]
+pZeroOrMore p = (pOneOrMore p) `pAlt` (pEmpty [])
+
+pOneOrMore :: Parser a -> Parser [a]
+pOneOrMore p = pThen (:) p (pZeroOrMore p)
+
+pApply :: Parser a -> (a -> b) -> Parser b
+pApply p f toks = [ (f v, toks1) | (v, toks1) <- p toks ]
+
+pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
+pOneOrMoreWithSep p1 p2
+  = pOneOrMore (pThen keepFirst p1 p2) `pAlt` (pEmpty [])
+    where keepFirst v _ = v
