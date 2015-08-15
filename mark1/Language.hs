@@ -164,6 +164,7 @@ data Iseq = INil
 
 iNil              = INil
 iAppend seq1 seq2 = IAppend seq1 seq2
+-- TODO: exercise 1.7: handle newlines in iStr
 iStr str          = IStr str
 iIndent seq       = IIndent seq
 iNewline          = INewline
