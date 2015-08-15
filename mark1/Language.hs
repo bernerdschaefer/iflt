@@ -184,3 +184,8 @@ flatten col ((IIndent seq, indent) : seqs)
 iDisplay seq = flatten 0 [(seq, 0)]
 
 space n = take n (repeat ' ')
+
+exampleSection154 = pprint [
+  ("x", [], (ELet recursive [("a", (ENum 2)), ("b", (ENum 3))]
+              (EAp (EAp (EVar "+") (EVar "a")) (EVar "b"))))
+  ]
