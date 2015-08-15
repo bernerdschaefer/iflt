@@ -140,8 +140,14 @@ iInterleave seq (s : [])   = s
 iInterleave sep (s : seqs) = s `iAppend` sep `iAppend` (iInterleave sep seqs)
 
 pprScDefn :: CoreScDefn -> Iseq
-pprScDefn (name, vars, body)
-  = iConcat [ iStr name, iStr " = ", pprExpr(body) ]
+pprScDefn (name, [], body) =
+  iConcat [ iStr name, iStr " = ", pprExpr(body) ]
+pprScDefn (name, vars, body) =
+  iConcat [ iStr name,
+            iStr " ",
+            iInterleave (iStr " ") (map iStr vars),
+            iStr " = ",
+            pprExpr(body) ]
 
 pprProgram :: CoreProgram -> Iseq
 pprProgram prog = iInterleave iNewline (map pprScDefn prog)
