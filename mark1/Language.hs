@@ -232,3 +232,51 @@ isAlpha x = x >= 'a' && x <= 'z' ||
 
 isIdChar x
   = isAlpha x || isDigit x || (x == '_')
+
+-- a parser for the type a
+-- takes a list of tokens
+-- and returns a list of parses,
+-- each of which consists
+-- of a value a
+-- paired with the remaining tokens
+type Parser a = [Token] -> [(a, [Token])]
+
+-- pLit (short for literal)
+-- takes a string
+-- and returns a parser
+-- which recognizes tokens containing that string,
+-- returning the same string as the value.
+pLit :: String -> Parser String
+pLit s (tok:toks)
+  | s == tok  = [(s, toks)]
+  | otherwise = []
+pLit s [] = []
+
+-- pVar decides whether a token is a variable
+pVar :: Parser String
+pVar [] = []
+pVar (tok:toks)
+  | isAlpha (head tok) = [(tok, toks)]
+  | otherwise          = []
+
+-- pAlt combines two parsers by calling each
+-- and combining their parses.
+pAlt :: Parser a -> Parser a -> Parser a
+pAlt p1 p2 toks = (p1 toks) ++ (p2 toks)
+
+pHelloOrGoodbye :: Parser String
+pHelloOrGoodbye = (pLit "hello") `pAlt` (pLit "goodbye")
+
+-- pThen combines two parsers
+-- by first parsing with p1
+-- then parsing a seconding value from the input with p2.
+-- The third argument combines the two results
+pThen :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
+pThen combine p1 p2 toks
+  = [ (combine v1 v2, toks2) | (v1, toks1) <- p1 toks,
+                              (v2, toks2) <- p2 toks1 ]
+
+pGreeting :: Parser (String, String)
+pGreeting = pThen mkPair pHelloOrGoodbye pVar
+              where
+                mkPair hg name = (hg, name)
