@@ -172,7 +172,7 @@ pprScDefn (name, vars, body) =
             pprExpr(body) ]
 
 pprProgram :: CoreProgram -> Iseq
-pprProgram prog = iInterleave iNewline (map pprScDefn prog)
+pprProgram prog = iInterleave (iConcat [iStr ";", iNewline]) (map pprScDefn prog)
 
 pprint prog = iDisplay (pprProgram prog)
 
