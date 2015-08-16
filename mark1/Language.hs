@@ -119,9 +119,24 @@ pprExpr (ELet isrec defns expr)
     where
       keyword | not isrec = "let"
               | isrec     = "letrec"
+pprExpr (ECase expr alters)
+  = iConcat [ iStr "case ",
+              (pprAExpr expr),
+              iStr " of",
+              iNewline,
+              iIndent (pprAlters alters) ]
 -- TODO: EConstr
--- TODO: ECase
 -- TODO: ELam
+
+pprAlters :: [CoreAlt] -> Iseq
+pprAlters alters = iInterleave sep (map pprAlter alters)
+                     where
+                       sep = iConcat [ iStr ";", iNewline ]
+pprAlter (tag, vars, expr)
+  = iConcat [ iStr "<", iStr (show tag), iStr "> ",
+              (iInterleave (iStr " ") (map iStr vars)),
+              iStr " -> ",
+              (pprExpr expr) ]
 
 pprDefns :: [(Name,CoreExpr)] -> Iseq
 pprDefns defns = iInterleave sep (map pprDefn defns)
@@ -317,8 +332,8 @@ pApply p f toks = [ (f v, toks1) | (v, toks1) <- p toks ]
 
 pOneOrMoreWithSep :: Parser a -> Parser b -> Parser [a]
 pOneOrMoreWithSep p1 p2
-  = pOneOrMore (pThen keepFirst p1 p2) `pAlt` (pEmpty [])
-    where keepFirst v _ = v
+  = pThen (:) p1 (pZeroOrMore (pThen keepSecond p2 p1))
+    where keepSecond _ v = v
 
 -- pSat generalizes pLit and pVar
 -- to a parser constructed from
@@ -347,9 +362,14 @@ pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
           mkSc name vars _ body = (name, vars, body)
 
 pExpr :: Parser CoreExpr
-pExpr = (pNum `pApply` (ENum))
-          `pAlt` (pLet)
-          `pAlt` (pVar `pApply` (EVar))
+pExpr = pLet `pAlt` pCase `pAlt` pAexpr
+
+pAexpr = (pNum `pApply` ENum)
+           `pAlt` (pVar `pApply` EVar)
+           `pAlt` pParenExpr
+
+pParenExpr = pThen3 keepSecond (pLit "(") pExpr (pLit ")")
+               where keepSecond _ expr _ = expr
 
 pLet :: Parser CoreExpr
 pLet = pThen4 mkLet (pLit "let" `pAlt` pLit "letrec") pDefns (pLit "in") pExpr
@@ -364,9 +384,32 @@ pDefn :: Parser (Name, CoreExpr)
 pDefn = pThen3 mkDefn pVar (pLit "=") pExpr
           where mkDefn var _ e = (var, e)
 
+pCase :: Parser CoreExpr
+pCase = pThen4 mkCase (pLit "case") pExpr (pLit "of") pAlters
+          where
+            mkCase _ expr _ alts = (ECase expr alts)
+
+pAlters :: Parser [CoreAlt]
+pAlters = pOneOrMoreWithSep pAlter (pLit ";")
+
+pAlter :: Parser CoreAlt
+pAlter = pThen4 mkAlt pTag pVars pArrow pExpr
+         where
+           mkAlt tag vars _ expr = (tag, vars, expr)
+
+pTag :: Parser Int
+pTag = pThen3 mkTag (pLit "<") pNum (pLit ">")
+         where mkTag _ tag _ = tag
+
+pVars :: Parser [Name]
+pVars = pZeroOrMore pVar
+
+pArrow = pThen mkArrow (pLit "-") (pLit ">")
+           where mkArrow _ _ = "->"
+
 exercise_1_21
-  = parse "f = 3                    \n\
-          \g x y = let z = x; in z ;    "
---          \h x = case (let y = x in y) of       \n\
---          \        <1> -> 2 ;                   \n\
---          \        <2> -> 5"
+  = parse "f = 3 ;                              \n\
+          \g x y = let z = x in z ;             \n\
+          \h x = case (let y = x in y) of       \n\
+          \        <2> -> 2 ;                   \n\
+          \        <2> -> 5                       "
