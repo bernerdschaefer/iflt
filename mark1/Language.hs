@@ -125,7 +125,8 @@ pprExpr (ECase expr alters)
               iStr " of",
               iNewline,
               iIndent (pprAlters alters) ]
--- TODO: EConstr
+pprExpr (EConstr tag arity)
+  = iConcat [ iStr "Pack{", iStr (show tag), iStr ", ", iStr (show arity), iStr "}" ]
 -- TODO: ELam
 
 pprAlters :: [CoreAlt] -> Iseq
@@ -366,6 +367,7 @@ pExpr = pLet `pAlt` pCase `pAlt` pAexpr
 
 pAexpr = (pNum `pApply` ENum)
            `pAlt` (pVar `pApply` EVar)
+           `pAlt` pPack
            `pAlt` pParenExpr
 
 pParenExpr = pThen3 keepSecond (pLit "(") pExpr (pLit ")")
@@ -406,6 +408,12 @@ pVars = pZeroOrMore pVar
 
 pArrow = pThen mkArrow (pLit "-") (pLit ">")
            where mkArrow _ _ = "->"
+
+pPack = pThen4 keepThird (pLit "Pack") (pLit "{")  pConstr (pLit "}")
+          where keepThird _ _ constr _ = constr
+
+pConstr = pThen3 mkConstr pNum (pLit ",") pNum
+            where mkConstr tag _ arity = (EConstr tag arity)
 
 exercise_1_21
   = parse "f = 3 ;                              \n\
