@@ -367,7 +367,7 @@ pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
           mkSc name vars _ body = (name, vars, body)
 
 pExpr :: Parser CoreExpr
-pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pAexpr
+pExpr = pAp `pAlt` pLet `pAlt` pCase `pAlt` pLam `pAlt` pAexpr
 
 pAexpr = (pNum `pApply` ENum)
            `pAlt` (pVar `pApply` EVar)
@@ -422,6 +422,14 @@ pPack = pThen4 keepThird (pLit "Pack") (pLit "{")  pConstr (pLit "}")
 
 pConstr = pThen3 mkConstr pNum (pLit ",") pNum
             where mkConstr tag _ arity = (EConstr tag arity)
+
+pAp :: Parser CoreExpr
+pAp = (pOneOrMore pAexpr) `pApply` mkApChain
+
+mkApChain :: [CoreExpr] -> CoreExpr
+mkApChain (x : []) = x
+mkApChain (x : xs)
+  = (EAp x (mkApChain xs))
 
 exercise_1_21
   = parse "f = 3 ;                              \n\
