@@ -17,6 +17,7 @@ type TiHeap = Heap Node
 data Node = NAp Addr Addr
             | NSupercomb Name [Name] CoreExpr
             | NNum Int
+            | NInd Addr
 
 type TiGlobals = ASSOC Name Addr
 
@@ -95,18 +96,25 @@ step state
       dispatch (NNum n)                  = numStep state n
       dispatch (NAp a1 a2)               = apStep  state a1 a2
       dispatch (NSupercomb sc args body) = scStep  state sc args body
+      dispatch (NInd a)                  = indStep state a
 
 -- a number at the head of the stack is an error
 numStep :: TiState -> Int -> TiState
 numStep state n = error "number applied as function"
+
+-- unwind indirection
+indStep (stack, dump, heap, globals, stats) a
+  = (a : (tail stack), dump, heap, globals, stats)
 
 -- unwind application
 apStep (stack, dump, heap, globals, stats) a1 a2
   = (a1 : stack, dump, heap, globals, stats)
 
 scStep (stack, dump, heap, globals, stats) sc args body
-  = (newStack, dump, newHeap, globals, stats)
+  = (newStack, dump, heap', globals, stats)
     where
+      rootAddr = stack !! (length args)
+      heap' = hUpdate newHeap rootAddr (NInd resultAddr)
       newStack = resultAddr : (drop (length args+1) stack)
 
       (newHeap, resultAddr) = instantiate body heap env
@@ -178,6 +186,7 @@ showNode (NAp a1 a2)
                              showAddr a1,
                              showAddr a2 ]
 showNode (NSupercomb name args body) = iStr ("NSupercomb " ++ name)
+showNode (NInd a) = iConcat [ iStr "NInd ", showAddr a ]
 
 showAddr addr = iStr (show addr)
 
@@ -208,3 +217,16 @@ exercise_2_11
       \        in                           \n\
       \        fst (snd (snd (snd a))) ;    \n\
       \main = f 3 4                           "
+
+exercise_2_12
+  = putStrLn $ showResults $ eval $ compile $ parse
+      "main = letrec f = f x in f"
+
+-- mark1: twice twice       = 33  steps
+--        twice twice twice = 165 steps
+-- mark3: twice twice       = 32  steps
+--        twice twice twice = 138 steps
+exercise_2_13
+  = putStrLn $ showResults $ eval $ compile $ parse
+      "id x = x ; \n\
+      \main = twice twice twice id 3"
