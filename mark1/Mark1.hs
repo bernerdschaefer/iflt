@@ -167,6 +167,16 @@ instantiateAndUpdate (EVar v) updAddr heap env
     where
       varAddr = aLookup env v (error ("Undefined name " ++ show v))
 
+instantiateAndUpdate (ELet rec defs body) updAddr heap env
+  = instantiateAndUpdate body updAddr newHeap (env' ++ env)
+    where
+      insEnv | rec == True = env' ++ env
+             | otherwise   = env
+
+      (newHeap, env') = mapAccuml instantiateDef heap defs
+      instantiateDef heap (name, rhs)
+        = (heap', (name, addr)) where (heap', addr) = instantiate rhs heap insEnv
+
 showResults states
   = iDisplay (iConcat [ iLayn (map showState states),
                         showStats (last states) ])
