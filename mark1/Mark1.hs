@@ -136,3 +136,44 @@ showResults states
 
 showState (stack, dump, heap, globals, stats)
   = iConcat [ showStack heap stack, iNewline ]
+
+showStack :: TiHeap -> TiStack -> Iseq
+showStack heap stack
+  = iConcat [
+      iStr "Stk [",
+      iIndent (iInterleave iNewline (map showStackItem stack)),
+      iStr "]"
+    ]
+    where
+      showStackItem addr
+        = iConcat [
+            showFWAddr addr, iStr ": ",
+            showStkNode heap (hLookup heap addr)
+          ]
+
+showStkNode :: TiHeap -> Node -> Iseq
+showStkNode heap (NAp fAddr argAddr)
+  = iInterleave (iStr " ") [ iStr "NAp",
+                             showFWAddr fAddr,
+                             showFWAddr argAddr,
+                             iStr "(",
+                             showNode (hLookup heap argAddr),
+                             iStr ")" ]
+showStkNode heap node = showNode node
+
+showNode :: Node -> Iseq
+showNode (NNum n) = iConcat [ iStr "NNum ", iNum n ]
+showNode (NAp a1 a2)
+  = iInterleave (iStr " ") [ iStr "NAp",
+                             showAddr a1,
+                             showAddr a2 ]
+showNode (NSupercomb name args body) = iStr ("NSupercomb " ++ name)
+
+showAddr addr = iStr (show addr)
+
+showFWAddr addr = iStr (space (4 - length str) ++ str)
+                    where str = show addr
+
+showStats (stack, dump, heap, globals, stats)
+  = iConcat [ iNewline, iNewline, iStr "Total number of steps = ",
+              iNum (tiStatGetSteps stats) ]

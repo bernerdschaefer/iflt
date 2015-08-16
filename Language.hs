@@ -1,4 +1,5 @@
 module Language where
+import Utils
 import Data.Char
 
 -- Section 1.3: Data types
@@ -223,8 +224,6 @@ flatten col ((IIndent seq, indent) : seqs)
   = flatten col ((seq, col) : seqs)
 
 iDisplay seq = flatten 0 [(seq, 0)]
-
-space n = take n (repeat ' ')
 
 exampleSection154 = pprint [
   ("x", [], (ELet recursive [("a", (ENum 2)), ("b", (ENum 3))]
