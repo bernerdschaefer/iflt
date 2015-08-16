@@ -127,7 +127,11 @@ pprExpr (ECase expr alters)
               iIndent (pprAlters alters) ]
 pprExpr (EConstr tag arity)
   = iConcat [ iStr "Pack{", iStr (show tag), iStr ", ", iStr (show arity), iStr "}" ]
--- TODO: ELam
+pprExpr (ELam vars expr)
+  = iConcat [ iStr "\\ ",
+              (iInterleave (iStr " ") (map iStr vars)),
+              iStr " . ",
+              pprExpr expr ]
 
 pprAlters :: [CoreAlt] -> Iseq
 pprAlters alters = iInterleave sep (map pprAlter alters)
@@ -363,7 +367,7 @@ pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
           mkSc name vars _ body = (name, vars, body)
 
 pExpr :: Parser CoreExpr
-pExpr = pLet `pAlt` pCase `pAlt` pAexpr
+pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pAexpr
 
 pAexpr = (pNum `pApply` ENum)
            `pAlt` (pVar `pApply` EVar)
@@ -390,6 +394,10 @@ pCase :: Parser CoreExpr
 pCase = pThen4 mkCase (pLit "case") pExpr (pLit "of") pAlters
           where
             mkCase _ expr _ alts = (ECase expr alts)
+
+pLam :: Parser CoreExpr
+pLam = pThen4 mkLam (pLit "\\") pVars (pLit ".") pExpr
+         where mkLam _ vars _ expr = (ELam vars expr)
 
 pAlters :: Parser [CoreAlt]
 pAlters = pOneOrMoreWithSep pAlter (pLit ";")
