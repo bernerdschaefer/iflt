@@ -130,14 +130,15 @@ instantiate (EAp e1 e2) heap env
 instantiate (EVar v) heap env
   = (heap, aLookup env v (error ("Undefined name " ++ show v)))
 
-instantiate (ELet False defs body) heap env
-  = instantiate body heap env'
+instantiate (ELet rec defs body) heap env
+  = instantiate body newHeap (env' ++ env)
     where
-      defs' = map instantiateDef defs
-      instantiateDef (name, rhs)
-        = (name, addr) where (heap, addr) = instantiate rhs heap env
+      insEnv | rec == True = env' ++ env
+             | otherwise   = env
 
-      env' = defs' ++ env
+      (newHeap, env') = mapAccuml instantiateDef heap defs
+      instantiateDef heap (name, rhs)
+        = (heap', (name, addr)) where (heap', addr) = instantiate rhs heap insEnv
 
 showResults states
   = iDisplay (iConcat [ iLayn (map showState states),
