@@ -130,6 +130,15 @@ instantiate (EAp e1 e2) heap env
 instantiate (EVar v) heap env
   = (heap, aLookup env v (error ("Undefined name " ++ show v)))
 
+instantiate (ELet False defs body) heap env
+  = instantiate body heap env'
+    where
+      defs' = map instantiateDef defs
+      instantiateDef (name, rhs)
+        = (name, addr) where (heap, addr) = instantiate rhs heap env
+
+      env' = defs' ++ env
+
 showResults states
   = iDisplay (iConcat [ iLayn (map showState states),
                         showStats (last states) ])
@@ -177,3 +186,24 @@ showFWAddr addr = iStr (space (4 - length str) ++ str)
 showStats (stack, dump, heap, globals, stats)
   = iConcat [ iNewline, iNewline, iStr "Total number of steps = ",
               iNum (tiStatGetSteps stats) ]
+
+exercise_2_10
+  = putStrLn $ showResults $ eval $ compile $ parse
+      "f x y = let                          \n\
+      \          a = x ;                    \n\
+      \          b = y                      \n\
+      \        in                           \n\
+      \        a ;                          \n\
+      \main = f 3 4                           "
+
+exercise_2_11
+  = putStrLn $ showResults $ eval $ compile $ parse
+      "pair x y f = f x y ;                 \n\
+      \fst p = p K ;                        \n\
+      \snd p = p K1 ;                       \n\
+      \f x y = letrec                       \n\
+      \          a = pair x b ;             \n\
+      \          b = pair y a               \n\
+      \        in                           \n\
+      \        fst (snd (snd (snd a))) ;    \n\
+      \main = f 3 4                           "
