@@ -85,3 +85,47 @@ tiFinal state = False
 isDataNode :: Node -> Bool
 isDataNode (NNum n) = True
 isDataNode _        = False
+
+step :: TiState -> TiState
+step state
+  = dispatch (hLookup heap (head stack))
+    where
+      (stack, dump, heap, globals, stats) = state
+
+      dispatch (NNum n)                  = numStep state n
+      dispatch (NAp a1 a2)               = apStep  state a1 a2
+      dispatch (NSupercomb sc args body) = scStep  state sc args body
+
+-- a number at the head of the stack is an error
+numStep :: TiState -> Int -> TiState
+numStep state n = error "number applied as function"
+
+-- unwind application
+apStep (stack, dump, heap, globals, stats) a1 a2
+  = (a1 : stack, dump, heap, globals, stats)
+
+scStep (stack, dump, heap, globals, stats) sc args body
+  = (newStack, dump, newHeap, globals, stats)
+    where
+      newStack = resultAddr : (drop (length args+1) stack)
+
+      (newHeap, resultAddr) = instantiate body heap env
+      env = argBindings ++ globals
+      argBindings = zip2 args (getargs heap stack)
+
+getargs :: TiHeap -> TiStack -> [Addr]
+getargs heap (sc : stack)
+  = map getarg stack
+    where
+      getarg addr = arg where (NAp f arg) = hLookup heap addr
+
+instantiate :: CoreExpr -> TiHeap -> ASSOC Name Addr -> (TiHeap, Addr)
+
+instantiate (ENum n) heap env = hAlloc heap (NNum n)
+
+instantiate (EAp e1 e2) heap env
+  = hAlloc heap2 (NAp a1 a2) where (heap1, a1) = instantiate e1 heap  env
+                                   (heap2, a2) = instantiate e2 heap1 env
+
+instantiate (EVar v) heap env
+  = (heap, aLookup env v (error ("Undefined name " ++ show v)))
