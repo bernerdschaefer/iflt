@@ -196,11 +196,8 @@ exampleSection154 = pprint [
 -- lex input into tokens
 clex :: String -> [Token]
 
--- perform syntactic analysis of tokens
--- syntax :: [Token] -> CoreProgram
-
 -- parse :: String -> CoreProgram
--- parse = syntax . clex -- why not syntax . clex . read ?
+parse = syntax . clex
 
 type Token = String -- a token is a non-empty string
 
@@ -332,3 +329,44 @@ pSat f [] = []
 pSat f (c:cs)
   | f c       = [(c, cs)]
   | otherwise = []
+
+-- perform syntactic analysis of tokens
+syntax :: [Token] -> CoreProgram
+syntax = takeFirstParse . pProgram
+           where
+             takeFirstParse ((prog, []) : others) = prog
+             takeFirstParse (other : others)      = takeFirstParse others
+             takeFirstParse other                 = error "Syntax error"
+
+pProgram :: Parser CoreProgram
+pProgram = pOneOrMoreWithSep pSc (pLit ";")
+
+pSc :: Parser CoreScDefn
+pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
+        where
+          mkSc name vars _ body = (name, vars, body)
+
+pExpr :: Parser CoreExpr
+pExpr = (pNum `pApply` (ENum))
+          `pAlt` (pLet)
+          `pAlt` (pVar `pApply` (EVar))
+
+pLet :: Parser CoreExpr
+pLet = pThen4 mkLet (pLit "let" `pAlt` pLit "letrec") pDefns (pLit "in") pExpr
+         where
+           mkLet "let" defns _ body    = (ELet nonRecursive defns body)
+           mkLet "letrec" defns _ body = (ELet recursive defns body)
+
+pDefns :: Parser [(Name, CoreExpr)]
+pDefns = pOneOrMoreWithSep pDefn (pLit ";")
+
+pDefn :: Parser (Name, CoreExpr)
+pDefn = pThen3 mkDefn pVar (pLit "=") pExpr
+          where mkDefn var _ e = (var, e)
+
+exercise_1_21
+  = parse "f = 3                    \n\
+          \g x y = let z = x; in z ;    "
+--          \h x = case (let y = x in y) of       \n\
+--          \        <1> -> 2 ;                   \n\
+--          \        <2> -> 5"
