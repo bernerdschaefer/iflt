@@ -432,8 +432,8 @@ pAp = (pOneOrMore pAexpr) `pApply` mkApChain
 
 mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain (x : []) = x
-mkApChain (x : xs)
-  = (EAp x (mkApChain xs))
+mkApChain (e1 : e2 : es)
+  = mkApChain ((EAp e1 e2) : es)
 
 exercise_1_21
   = parse "f = 3 ;                              \n\
