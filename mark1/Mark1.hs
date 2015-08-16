@@ -111,13 +111,11 @@ apStep (stack, dump, heap, globals, stats) a1 a2
   = (a1 : stack, dump, heap, globals, stats)
 
 scStep (stack, dump, heap, globals, stats) sc args body
-  = (newStack, dump, heap', globals, stats)
+  = (bodyAddr : stack', dump, heap', globals, stats)
     where
-      rootAddr = stack !! (length args)
-      heap' = hUpdate newHeap rootAddr (NInd resultAddr)
-      newStack = resultAddr : (drop (length args+1) stack)
-
-      (newHeap, resultAddr) = instantiate body heap env
+      bodyAddr = stack !! (length args)
+      stack' = drop (length args + 1) stack
+      heap' = instantiateAndUpdate body bodyAddr heap env
       env = argBindings ++ globals
       argBindings = zip2 args (getargs heap stack)
 
@@ -147,6 +145,27 @@ instantiate (ELet rec defs body) heap env
       (newHeap, env') = mapAccuml instantiateDef heap defs
       instantiateDef heap (name, rhs)
         = (heap', (name, addr)) where (heap', addr) = instantiate rhs heap insEnv
+
+instantiateAndUpdate
+  :: CoreExpr           -- body of supercombinator
+     -> Addr            -- address of node to update
+     -> TiHeap          -- heap before instantiation
+     -> ASSOC Name Addr -- associate params to addresses
+     -> TiHeap          -- heap after instantiation
+
+instantiateAndUpdate (EAp e1 e2) updAddr heap env
+  = hUpdate heap2 updAddr (NAp a1 a2)
+    where
+      (heap1, a1) = instantiate e1 heap  env
+      (heap2, a2) = instantiate e2 heap1 env
+
+instantiateAndUpdate (ENum n) updAddr heap env
+  = hUpdate heap updAddr (NNum n)
+
+instantiateAndUpdate (EVar v) updAddr heap env
+  = hUpdate heap updAddr (NInd varAddr)
+    where
+      varAddr = aLookup env v (error ("Undefined name " ++ show v))
 
 showResults states
   = iDisplay (iConcat [ iLayn (map showState states),
