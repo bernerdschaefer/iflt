@@ -110,7 +110,7 @@ pprAExpr e
 
 pprExpr :: CoreExpr -> Iseq
 pprExpr (EVar v) = iStr v
-pprExpr (ENum n) = iStr (show n)
+pprExpr (ENum n) = iNum n
 pprExpr (EAp e1 e2) = (pprExpr e1) `iAppend` (iStr " ") `iAppend` (pprAExpr e2)
 pprExpr (ELet isrec defns expr)
   = iConcat [ iStr keyword, iNewline,
@@ -127,7 +127,7 @@ pprExpr (ECase expr alters)
               iStr "  ",
               iIndent (pprAlters alters) ]
 pprExpr (EConstr tag arity)
-  = iConcat [ iStr "Pack{", iStr (show tag), iStr ", ", iStr (show arity), iStr "}" ]
+  = iConcat [ iStr "Pack{", iNum tag, iStr ", ", iNum arity, iStr "}" ]
 pprExpr (ELam vars expr)
   = iConcat [ iStr "\\ ",
               (iInterleave (iStr " ") (map iStr vars)),
@@ -139,7 +139,7 @@ pprAlters alters = iInterleave sep (map pprAlter alters)
                      where
                        sep = iConcat [ iStr ";", iNewline ]
 pprAlter (tag, vars, expr)
-  = iConcat [ iStr "<", iStr (show tag), iStr "> ",
+  = iConcat [ iStr "<", iNum tag, iStr "> ",
               (iInterleave (iStr " ") (map iStr vars)),
               iStr " -> ",
               (pprExpr expr) ]
@@ -190,6 +190,22 @@ iAppend seq1 seq2 = IAppend seq1 seq2
 iStr str          = IStr str
 iIndent seq       = IIndent seq
 iNewline          = INewline
+
+iNum n = iStr (show n)
+
+-- left-pad a number to the specified width
+iFWNum :: Int -> Int -> Iseq
+iFWNum width n
+  = iStr (space (width - length digits) ++ digits)
+      where digits = show n
+
+-- lay out a list, numbering the items
+iLayn :: [Iseq] -> Iseq
+iLayn seqs
+  = iConcat (map layItem (zip [1..] seqs))
+      where
+        layItem (n, seq)
+          = iConcat [ iFWNum 4 n, iStr ") ", iIndent seq, iNewline ]
 
 flatten :: Int               -- current column (0 for first)
             -> [(Iseq, Int)] -- work list

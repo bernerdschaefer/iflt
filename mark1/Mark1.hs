@@ -129,3 +129,10 @@ instantiate (EAp e1 e2) heap env
 
 instantiate (EVar v) heap env
   = (heap, aLookup env v (error ("Undefined name " ++ show v)))
+
+showResults states
+  = iDisplay (iConcat [ iLayn (map showState states),
+                        showStats (last states) ])
+
+showState (stack, dump, heap, globals, stats)
+  = iConcat [ showStack heap stack, iNewline ]
