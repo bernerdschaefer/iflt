@@ -124,6 +124,7 @@ pprExpr (ECase expr alters)
               (pprAExpr expr),
               iStr " of",
               iNewline,
+              iStr "  ",
               iIndent (pprAlters alters) ]
 pprExpr (EConstr tag arity)
   = iConcat [ iStr "Pack{", iStr (show tag), iStr ", ", iStr (show arity), iStr "}" ]
@@ -194,9 +195,12 @@ flatten :: Int               -- current column (0 for first)
             -> [(Iseq, Int)] -- work list
             -> String        -- result
 flatten col [] = ""
-flatten col ((INil, _) : seqs) = flatten col seqs
-flatten col (((IStr s), _) : seqs) = s ++ (flatten col seqs)
-flatten col (((IAppend seq1 seq2), _) : seqs) = flatten col ((seq1, col) : (seq2, col) : seqs)
+flatten col ((INil, _) : seqs)
+  = flatten col seqs
+flatten col ((IStr s, _) : seqs)
+  = s ++ (flatten (col + (length s)) seqs)
+flatten col ((IAppend seq1 seq2, indent) : seqs)
+  = flatten col ((seq1, indent) : (seq2, indent) : seqs)
 flatten col ((INewline, indent) : seqs)
   = '\n' : (space indent) ++ (flatten indent seqs)
 flatten col ((IIndent seq, indent) : seqs)
