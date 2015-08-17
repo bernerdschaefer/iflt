@@ -1,0 +1,48 @@
+module TIM where
+import Language
+import Utils
+
+-- Transition rules
+--
+--    The state of the machine is the quintuple:
+--
+--      (instructions, frame pointer, stack, heap, code store)
+--      (i, f, s, h, c)
+--
+--    Take n makes the top n stack elements into a new frame
+--    and makes the current frame pointer point to it.
+--
+--    4.1   Take N : i  f  c1 : ... : cN : s  h                    c
+--    ==>            i  f'                 s  h[f' : <c1,...,cN>]  c
+--
+--    Push (Arg K) fetches the Kth closure from the current frame
+--    and pushes it onto the stack.
+--    4.2   Push (Arg K) : i  f              s  h[f : <(i1, f1),...,(iK, fK),...,(iN, fN)>] c
+--    ==>                  i  f   (iK, fK) : s  h                                           c
+--
+--    Push (Label L) looks up the label L
+--    and pushes a closure
+--    consisting of the code pointer with the current frame pointer.
+--    4.3   Push (Label L) : i  f            s  h  c[l : i']
+--    ==>                    i  f  (i', f) : s  h  c
+--
+--    Push (Code i') makes the target code sequence i
+--    part of the instruction itself.
+--    4.4   Push (Code i') : i  f            s  h  c
+--    ==>                    i  f  (i', f) : s  h  c
+--
+--    Push (IntConst N) pushes a special closure.
+--    4.5   Push (IntConst N) : i  f                 s  h  c
+--    ==>                       i  f  (intCode, N) : s  h  c
+--
+--    4.6   [Enter (Label L)]  f  s  h  c[L : i]
+--    ==>                   i  f  s  h  c
+--
+--    4.7   [Enter (Arg K)]  f   s  h[f : <(i1, f1),...,(iK, fK),...,(iN, fN)>]  c
+--    ==>                iK  fK  s  h                                            c
+--
+--    4.8   [Enter (Code i)]  f  s  h  c
+--    ==>                  i  f  s  h  c
+--
+--    4.9   [Enter (IntConst N)]  f  s  h  c
+--    ==>                intCode  N  s  h  c
