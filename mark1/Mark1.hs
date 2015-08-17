@@ -6,10 +6,8 @@ type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
 -- the spine stack is a stack of heap addresses
 type TiStack = [Addr]
 
--- the dump is not yet needed,
--- so provide a summy implementation
-data TiDump = DummyTiDump
-initialTiDump = DummyTiDump
+type TiDump = [TiStack]
+initialTiDump = []
 
 -- the heap is a heap of nodes
 type TiHeap = Heap Node
@@ -18,6 +16,9 @@ data Node = NAp Addr Addr
             | NSupercomb Name [Name] CoreExpr
             | NNum Int
             | NInd Addr
+            | NPrim Name Primitive
+
+data Primitive = Neg | Add | Sub | Mul | Div
 
 type TiGlobals = ASSOC Name Addr
 
@@ -55,7 +56,23 @@ compile program
 extraPreludeDefs = []
 
 buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
-buildInitialHeap scDefs = mapAccuml allocateSc hInitial scDefs
+buildInitialHeap scDefs
+  = (heap2, scAddrs ++ primAddrs)
+    where
+      (heap1, scAddrs)   = mapAccuml allocateSc hInitial scDefs
+      (heap2, primAddrs) = mapAccuml allocatePrim heap1 primitives
+
+primitives :: ASSOC Name Primitive
+primitives = [ ("negate", Neg),
+               ("+", Add), ("-", Sub),
+               ("*", Mul), ("/", Div)
+             ]
+
+allocatePrim :: TiHeap -> (Name, Primitive) -> (TiHeap, (Name, Addr))
+allocatePrim heap (name, prim)
+  = (heap', (name, addr))
+    where
+      (heap', addr) = hAlloc heap (NPrim name prim)
 
 allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
 allocateSc heap (name, args, body)
@@ -216,6 +233,7 @@ showNode (NAp a1 a2)
                              showAddr a2 ]
 showNode (NSupercomb name args body) = iStr ("NSupercomb " ++ name)
 showNode (NInd a) = iConcat [ iStr "NInd ", showAddr a ]
+showNode (NPrim name _) = iConcat [ iStr "NPrim ", iStr (show name) ]
 
 showAddr addr = iStr (show addr)
 
