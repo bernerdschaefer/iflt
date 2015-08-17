@@ -219,4 +219,6 @@ showResults states
 showState (instr, fptr, stack, vstack, dump, heap, cstore, stats)
   = iStr "[state]"
 
-showStats _ = iStr "[stats]"
+showStats (_, _, _, _, _, _, _, stats)
+  = iConcat [ iNewline, iNewline, iStr "Total number of steps = ",
+              iNum (statGetSteps stats) ]
