@@ -57,7 +57,6 @@ runProg = showResults . eval . compile . parse
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
 
-showResults _     = error "not yet implemented"
 showFullResults _ = error "not yet implemented"
 
 data Instruction = Take Int
@@ -185,7 +184,36 @@ doAdmin state = applyToStats statIncSteps state
 final ([], frame, stack, vstack, dump, heap, cstore, stats) = True
 final state                                                 = False
 
-applyToStats f (inst, frame, stack, vstack, dump, heap, cstore, stats)
-  = (inst, frame, stack, vstack, dump, heap, cstore, f stats)
+applyToStats f (instr, frame, stack, vstack, dump, heap, cstore, stats)
+  = (instr, frame, stack, vstack, dump, heap, cstore, f stats)
 
-step = error "not implemented"
+step ((Take n:instr), fptr, stack, vstack, dump, heap, cstore, stats)
+  | length stack >= n = (instr, fptr', (drop n stack), vstack, dump, heap', cstore, stats)
+  | otherwise         = error "Too few args for Take"
+    where
+      (heap', fptr') = fAlloc heap (take n stack)
+
+step ([Enter am], fptr, stack, vstack, dump, heap, cstore, stats)
+  = (instr', fptr', stack, vstack, dump, heap, cstore, stats)
+    where
+      (instr', fptr') = amToClosure am fptr heap cstore
+
+step ((Push am:instr), fptr, stack, vstack, dump, heap, cstore, stats)
+  = (instr, fptr, stack', vstack, dump, heap, cstore, stats)
+    where
+      stack' = (amToClosure am fptr heap cstore) : stack
+
+amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
+amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
+amToClosure (Code i)     fptr heap cstore  = (i, fptr)
+amToClosure (IntConst n) fptr heap cstore = (intCode, FrameInt n)
+
+showResults states
+  = iDisplay (iConcat [
+      showState lastState, iNewline, iNewline, showStats lastState
+    ]) where lastState = last states
+
+showState (instr, fptr, stack, vstack, dump, heap, cstore, stats)
+  = iStr "[state]"
+
+showStats _ = iStr "[stats]"
