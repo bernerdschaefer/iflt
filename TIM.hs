@@ -62,11 +62,13 @@ showFullResults _ = error "not yet implemented"
 data Instruction = Take Int
                  | Enter AMode
                  | Push AMode
+                 deriving (Eq, Show)
 
 data AMode = Arg Int
               | Label String
               | Code [Instruction]
               | IntConst Int
+              deriving (Eq, Show)
 
 -- intCode produces an empty code sequence
 intCode = []
@@ -83,6 +85,7 @@ type State = ([Instruction], -- the current instruction stream
 data FramePtr = FrameAddr U.Addr  -- the address of a frame
                 | FrameInt Int  -- an integer value
                 | FrameNull     -- uninitialized
+                deriving (Eq, Show)
 
 type Stack = [Closure]
 type Closure  = ([Instruction], FramePtr)
