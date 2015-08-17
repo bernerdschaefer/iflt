@@ -154,4 +154,22 @@ initialValueStack  = DummyTimValueStack
 initialDump        = DummyTimDump
 compiledPrimitives = []
 
-compileSC = error "not implemented"
+type TimCompilerEnv = [(Name, TimAMode)]
+
+compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSC env (name, args, body)
+  = (name, Take (length args) : instructions)
+    where
+      instructions = compileR body newEnv
+      newEnv = (zip args (map Arg [1..])) ++ env
+
+compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
+compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
+compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
+compileR (ENum n)    env = [Enter (compileA (ENum n) env)]
+compileR e           env = error "compileR: unsupported call"
+
+compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
+compileA (EVar v) env = aLookup env v (error ("unknown variable " ++ v))
+compileA (ENum n) env = IntConst n
+compileA e        env = Code (compileR e env)
