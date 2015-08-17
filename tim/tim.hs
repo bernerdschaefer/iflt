@@ -1,6 +1,6 @@
 module TIM where
 import Language
-import Utils
+import qualified Utils as U
 
 -- Transition rules
 --
@@ -48,9 +48,9 @@ import Utils
 --    ==>                intCode  N  s  h  c
 
 runProg     :: String -> String
-compile     :: CoreProgram -> TimState
-eval        :: TimState -> [TimState]
-showResults :: [TimState] -> String
+compile     :: CoreProgram -> State
+eval        :: State -> [State]
+showResults :: [State] -> String
 
 runProg = showResults . eval . compile . parse
 
@@ -62,10 +62,10 @@ showResults _     = error "not yet implemented"
 showFullResults _ = error "not yet implemented"
 
 data Instruction = Take Int
-                 | Enter TimAMode
-                 | Push TimAMode
+                 | Enter AMode
+                 | Push AMode
 
-data TimAMode = Arg Int
+data AMode = Arg Int
               | Label String
               | Code [Instruction]
               | IntConst Int
@@ -73,62 +73,62 @@ data TimAMode = Arg Int
 -- intCode produces an empty code sequence
 intCode = []
 
-type TimState = ([Instruction], -- the current instruction stream
+type State = ([Instruction], -- the current instruction stream
                  FramePtr,      -- address of current frame
-                 TimStack,      -- stack of arguments
-                 TimValueStack, -- value stack (not used yet)
-                 TimDump,       -- dump (not used yet)
-                 TimHeap,       -- heap of frames
+                 Stack,      -- stack of arguments
+                 ValueStack, -- value stack (not used yet)
+                 Dump,       -- dump (not used yet)
+                 Heap,       -- heap of frames
                  CodeStore,     -- labelled blocks of code
-                 TimStats)      -- statistics
+                 Stats)      -- statistics
 
-data FramePtr = FrameAddr Addr  -- the address of a frame
+data FramePtr = FrameAddr U.Addr  -- the address of a frame
                 | FrameInt Int  -- an integer value
                 | FrameNull     -- uninitialized
 
-type TimStack = [Closure]
+type Stack = [Closure]
 type Closure  = ([Instruction], FramePtr)
 
 -- placeholder types for value stack and dump types
-data TimValueStack = DummyTimValueStack
-data TimDump = DummyTimDump
+data ValueStack = DummyValueStack
+data Dump = DummyDump
 
-type TimHeap = Heap Frame
+type Heap = U.Heap Frame
 
-fAlloc   :: TimHeap -> [Closure] -> (TimHeap, FramePtr)
-fGet     :: TimHeap -> FramePtr -> Int -> Closure
-fUpdate  :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
+fAlloc   :: Heap -> [Closure] -> (Heap, FramePtr)
+fGet     :: Heap -> FramePtr -> Int -> Closure
+fUpdate  :: Heap -> FramePtr -> Int -> Closure -> Heap
 fList    :: Frame -> [Closure] -- for printing
 
 type Frame = [Closure]
 
 fAlloc heap xs = (heap', FrameAddr addr)
                  where
-                   (heap', addr) = hAlloc heap xs
+                   (heap', addr) = U.hAlloc heap xs
 
 fGet heap (FrameAddr addr) n = f !! (n-1)
-                               where f = hLookup heap addr
+                               where f = U.hLookup heap addr
 
 fUpdate heap (FrameAddr addr) n closure
-  = hUpdate heap addr newFrame
+  = U.hUpdate heap addr newFrame
     where
-      frame = hLookup heap addr
+      frame = U.hLookup heap addr
       newFrame = take (n-1) frame ++ [closure] ++ drop n frame
 
 fList f = f
 
-type CodeStore = ASSOC Name [Instruction]
+type CodeStore = U.ASSOC Name [Instruction]
 
 codeLookup :: CodeStore -> Name -> [Instruction]
 codeLookup cstore l
-  = aLookup cstore l (error ("Attempt to jump to unknown label "
+  = U.aLookup cstore l (error ("Attempt to jump to unknown label "
                              ++ show l))
 
-statInitial  :: TimStats
-statIncSteps :: TimStats -> TimStats
-statGetSteps :: TimStats -> Int
+statInitial  :: Stats
+statIncSteps :: Stats -> Stats
+statGetSteps :: Stats -> Int
 
-type TimStats = Int
+type Stats = Int
 statInitial    = 0
 statIncSteps s = s + 1
 statGetSteps s = s
@@ -139,7 +139,7 @@ compile program
      initialArgStack,         -- argument stack
      initialValueStack,       -- value stack
      initialDump,             -- dump
-     hInitial,                -- initial heap
+     U.hInitial,              -- initial heap
      compiledCode,            -- compiled supercombinators
      statInitial)             -- initial statistics
        where
@@ -150,26 +150,26 @@ compile program
                       ++ [(name, Label name) | (name, code) <- compiledPrimitives ]
 
 initialArgStack    = []
-initialValueStack  = DummyTimValueStack
-initialDump        = DummyTimDump
+initialValueStack  = DummyValueStack
+initialDump        = DummyDump
 compiledPrimitives = []
 
-type TimCompilerEnv = [(Name, TimAMode)]
+type CompilerEnv = [(Name, AMode)]
 
-compileSC :: TimCompilerEnv -> CoreScDefn -> (Name, [Instruction])
+compileSC :: CompilerEnv -> CoreScDefn -> (Name, [Instruction])
 compileSC env (name, args, body)
   = (name, Take (length args) : instructions)
     where
       instructions = compileR body newEnv
       newEnv = (zip args (map Arg [1..])) ++ env
 
-compileR :: CoreExpr -> TimCompilerEnv -> [Instruction]
+compileR :: CoreExpr -> CompilerEnv -> [Instruction]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
 compileR (ENum n)    env = [Enter (compileA (ENum n) env)]
 compileR e           env = error "compileR: unsupported call"
 
-compileA :: CoreExpr -> TimCompilerEnv -> TimAMode
-compileA (EVar v) env = aLookup env v (error ("unknown variable " ++ v))
+compileA :: CoreExpr -> CompilerEnv -> AMode
+compileA (EVar v) env = U.aLookup env v (error ("unknown variable " ++ v))
 compileA (ENum n) env = IntConst n
 compileA e        env = Code (compileR e env)
