@@ -46,3 +46,90 @@ import Utils
 --
 --    4.9   [Enter (IntConst N)]  f  s  h  c
 --    ==>                intCode  N  s  h  c
+
+runProg     :: String -> String
+compile     :: CoreProgram -> TimState
+eval        :: TimState -> [TimState]
+showResults :: [TimState] -> String
+
+runProg = showResults . eval . compile . parse
+
+fullRun :: String -> String
+fullRun = showFullResults . eval . compile . parse
+
+compile _         = error "not yet implemented"
+eval _            = error "not yet implemented"
+showResults _     = error "not yet implemented"
+showFullResults _ = error "not yet implemented"
+
+data Instruction = Take Int
+                 | Enter TimAMode
+                 | Push TimAMode
+
+data TimAMode = Arg Int
+              | Label String
+              | Code [Instruction]
+              | IntConst Int
+
+-- intCode produces an empty code sequence
+intCode = []
+
+type TimState = ([Instruction], -- the current instruction stream
+                 FramePtr,      -- address of current frame
+                 TimStack,      -- stack of arguments
+                 TimValueStack, -- value stack (not used yet)
+                 TimDump,       -- dump (not used yet)
+                 TimHeap,       -- heap of frames
+                 CodeStore,     -- labelled blocks of code
+                 TimStats)      -- statistics
+
+data FramePtr = FrameAddr Addr  -- the address of a frame
+                | FrameInt Int  -- an integer value
+                | FrameNull     -- uninitialized
+
+type TimStack = [Closure]
+type Closure  = ([Instruction], FramePtr)
+
+-- placeholder types for value stack and dump types
+data TimValueStack = DummyTimValueStack
+data TimDump = DummyTimDump
+
+type TimHeap = Heap Frame
+
+fAlloc   :: TimHeap -> [Closure] -> (TimHeap, FramePtr)
+fGet     :: TimHeap -> FramePtr -> Int -> Closure
+fUpdate  :: TimHeap -> FramePtr -> Int -> Closure -> TimHeap
+fList    :: Frame -> [Closure] -- for printing
+
+type Frame = [Closure]
+
+fAlloc heap xs = (heap', FrameAddr addr)
+                 where
+                   (heap', addr) = hAlloc heap xs
+
+fGet heap (FrameAddr addr) n = f !! (n-1)
+                               where f = hLookup heap addr
+
+fUpdate heap (FrameAddr addr) n closure
+  = hUpdate heap addr newFrame
+    where
+      frame = hLookup heap addr
+      newFrame = take (n-1) frame ++ [closure] ++ drop n frame
+
+fList f = f
+
+type CodeStore = ASSOC Name [Instruction]
+
+codeLookup :: CodeStore -> Name -> [Instruction]
+codeLookup cstore l
+  = aLookup cstore l (error ("Attempt to jump to unknown label "
+                             ++ show l))
+
+statInitial  :: TimStats
+statIncSteps :: TimStats -> TimStats
+statGetSteps :: TimStats -> Int
+
+type TimStats = Int
+statInitial    = 0
+statIncSteps s = s + 1
+statGetSteps s = s
