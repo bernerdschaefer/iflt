@@ -57,7 +57,6 @@ runProg = showResults . eval . compile . parse
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
 
-compile _         = error "not yet implemented"
 eval _            = error "not yet implemented"
 showResults _     = error "not yet implemented"
 showFullResults _ = error "not yet implemented"
@@ -133,3 +132,26 @@ type TimStats = Int
 statInitial    = 0
 statIncSteps s = s + 1
 statGetSteps s = s
+
+compile program
+  = ([Enter (Label "main")],  -- initial instructions
+     FrameNull,               -- null frame pointer
+     initialArgStack,         -- argument stack
+     initialValueStack,       -- value stack
+     initialDump,             -- dump
+     hInitial,                -- initial heap
+     compiledCode,            -- compiled supercombinators
+     statInitial)             -- initial statistics
+       where
+         scDefs         = preludeDefs ++ program
+         compiledScDefs = map (compileSC initialEnv) scDefs
+         compiledCode   = compiledScDefs ++ compiledPrimitives
+         initialEnv = [ (name, Label name) | (name, args, body) <- scDefs ]
+                      ++ [(name, Label name) | (name, code) <- compiledPrimitives ]
+
+initialArgStack    = []
+initialValueStack  = DummyTimValueStack
+initialDump        = DummyTimDump
+compiledPrimitives = []
+
+compileSC = error "not implemented"
