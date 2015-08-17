@@ -57,7 +57,6 @@ runProg = showResults . eval . compile . parse
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
 
-eval _            = error "not yet implemented"
 showResults _     = error "not yet implemented"
 showFullResults _ = error "not yet implemented"
 
@@ -173,3 +172,20 @@ compileA :: CoreExpr -> CompilerEnv -> AMode
 compileA (EVar v) env = U.aLookup env v (error ("unknown variable " ++ v))
 compileA (ENum n) env = IntConst n
 compileA e        env = Code (compileR e env)
+
+eval state
+  = state : restStates
+    where
+      restStates | final state = []
+                 | otherwise   = eval nextState
+      nextState  = doAdmin (step state)
+
+doAdmin state = applyToStats statIncSteps state
+
+final ([], frame, stack, vstack, dump, heap, cstore, stats) = True
+final state                                                 = False
+
+applyToStats f (inst, frame, stack, vstack, dump, heap, cstore, stats)
+  = (inst, frame, stack, vstack, dump, heap, cstore, f stats)
+
+step = error "not implemented"
