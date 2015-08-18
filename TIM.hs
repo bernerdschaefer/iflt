@@ -133,10 +133,16 @@ statInitial  :: Stats
 statIncSteps :: Stats -> Stats
 statGetSteps :: Stats -> Int
 
-type Stats = Int
-statInitial    = 0
-statIncSteps s = s + 1
-statGetSteps s = s
+data Stats = Stats { stepCount :: Int
+                   , maxStackDepth :: Int
+                   } deriving (Show)
+
+statInitial    = Stats { stepCount = 0, maxStackDepth = 0 }
+statIncSteps stats = stats { stepCount = (stepCount stats) + 1 }
+statGetSteps stats = stepCount stats
+statUpdateMaxStackDepth stack stats
+  | (length stack) > (maxStackDepth stats) = stats { maxStackDepth = (length stack) }
+  | otherwise                              = stats
 
 compile program
   = ([Enter (Label "main")],  -- initial instructions
@@ -188,7 +194,11 @@ eval state
                  | otherwise   = eval nextState
       nextState  = doAdmin (step state)
 
-doAdmin state = applyToStats statIncSteps state
+doAdmin state
+  = applyToStats (statUpdateMaxStackDepth stack) state2
+    where
+      (_, _, stack, _,_, _, _, _) = state
+      state2 = applyToStats statIncSteps state
 
 final ([], frame, stack, vstack, dump, heap, cstore, stats) = True
 final state                                                 = False
@@ -257,9 +267,10 @@ showFramePtr (FrameAddr a) = iStr (show a)
 showFramePtr (FrameInt n) = iStr "int " `iAppend` iNum n
 
 showStats (instr, frame, stack, vstack, dump, heap, cstore, stats)
-  = iConcat [ iStr "Steps take = ", iNum (statGetSteps stats), iNewline,
-              iStr "No of frames allocated = ", iNum (U.hSize heap),
-              iNum (statGetSteps stats) ]
+  = iConcat [ iStr "Steps taken = ", iNum (statGetSteps stats), iNewline
+            , iStr "Max stack depth = ", iNum (maxStackDepth stats), iNewline
+            , iStr "No of frames allocated = ", iNum (U.hSize heap), iNewline
+            ]
 
 data HowMuchToPrint = Full | Terse | None
 showInstructions :: HowMuchToPrint -> [Instruction] -> Iseq
