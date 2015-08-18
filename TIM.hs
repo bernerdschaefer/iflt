@@ -224,7 +224,7 @@ showResults states
 
 showState (instr, fptr, stack, vstack, dump, heap, cstore, stats)
   = iConcat [
-      iStr "Code: []", iNewline,
+      iStr "Code:  ", showInstructions Terse instr, iNewline,
       showFrame heap fptr,
       showStack stack,
       showValueStack vstack,
