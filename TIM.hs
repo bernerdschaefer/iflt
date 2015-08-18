@@ -163,10 +163,12 @@ type CompilerEnv = [(Name, AMode)]
 
 compileSC :: CompilerEnv -> CoreScDefn -> (Name, [Instruction])
 compileSC env (name, args, body)
-  = (name, Take (length args) : instructions)
+  = (name, instructions args)
     where
-      instructions = compileR body newEnv
+      compiledBody = compileR body newEnv
       newEnv = (zip args (map Arg [1..])) ++ env
+      instructions []   = compiledBody -- CAF optimization
+      instructions args = Take (length args) : compiledBody
 
 compileR :: CoreExpr -> CompilerEnv -> [Instruction]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
