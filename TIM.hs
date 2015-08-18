@@ -57,7 +57,11 @@ runProg = showResults . eval . compile . parse
 fullRun :: String -> String
 fullRun = showFullResults . eval . compile . parse
 
-showFullResults _ = error "not yet implemented"
+showFullResults states
+  = iDisplay (iConcat [
+      iLayn (map showState states), iNewline, iNewline,
+      showStats (last states)
+    ])
 
 data Instruction = Take Int
                  | Enter AMode
@@ -74,12 +78,12 @@ data AMode = Arg Int
 intCode = []
 
 type State = ([Instruction], -- the current instruction stream
-                 FramePtr,      -- address of current frame
+                 FramePtr,   -- address of current frame
                  Stack,      -- stack of arguments
                  ValueStack, -- value stack (not used yet)
                  Dump,       -- dump (not used yet)
                  Heap,       -- heap of frames
-                 CodeStore,     -- labelled blocks of code
+                 CodeStore,  -- labelled blocks of code
                  Stats)      -- statistics
 
 data FramePtr = FrameAddr U.Addr  -- the address of a frame
@@ -217,8 +221,66 @@ showResults states
     ]) where lastState = last states
 
 showState (instr, fptr, stack, vstack, dump, heap, cstore, stats)
-  = iStr "[state]"
+  = iConcat [
+      iStr "Code: []", iNewline,
+      showFrame heap fptr,
+      showStack stack,
+      showValueStack vstack,
+      showDump dump,
+      iNewline ]
 
-showStats (_, _, _, _, _, _, _, stats)
-  = iConcat [ iNewline, iNewline, iStr "Total number of steps = ",
+showValueStack _ = iStr "[vstack]" `iAppend` iNewline
+showDump _       = iStr "[dump]" `iAppend` iNewline
+
+showFrame heap FrameNull = iStr "FramePtr (null)" `iAppend` iNewline
+showFrame heap (FrameInt i)
+  = iConcat [ iStr "FramePtr (int): ", iNum i, iNewline ]
+showFrame heap (FrameAddr addr)
+  = iConcat [ iStr "FramePtr (addr): <",
+              iIndent (iInterleave iNewline
+                                   (map showClosure (fList (U.hLookup heap addr)))),
+              iStr ">", iNewline ]
+
+showStack stack
+  = iConcat [ iStr "Arg stack: [",
+              iIndent (iInterleave iNewline (map showClosure stack)),
+              iStr "]", iNewline ]
+
+showClosure (i, f)
+  = iConcat [ iStr "(", showInstructions Terse i, iStr ", ",
+              showFramePtr f, iStr ")" ]
+
+showFramePtr FrameNull = iStr "null"
+showFramePtr (FrameAddr a) = iStr (show a)
+showFramePtr (FrameInt n) = iStr "int " `iAppend` iNum n
+
+showStats (instr, frame, stack, vstack, dump, heap, cstore, stats)
+  = iConcat [ iStr "Steps take = ", iNum (statGetSteps stats), iNewline,
+              iStr "No of frames allocated = ", iNum (U.hSize heap),
               iNum (statGetSteps stats) ]
+
+data HowMuchToPrint = Full | Terse | None
+showInstructions :: HowMuchToPrint -> [Instruction] -> Iseq
+showInstructions None _ = iStr "{...}"
+showInstructions Terse il
+  = iConcat [iStr "{", iIndent (iInterleave (iStr ", ") body), iStr "}"]
+    where
+      instrs = map (showInstruction None) il
+      body | length il <= nTerse = instrs
+           | otherwise           = (take nTerse instrs) ++ [iStr ".."]
+showInstructions Full il
+  = iConcat [iStr "{ ", iIndent (iInterleave sep instrs), iStr " }"]
+    where
+      sep = iStr "," `iAppend` iNewline
+      instrs = map (showInstruction Full) il
+
+showInstruction d (Take m)  = (iStr "Take ")  `iAppend` (iNum m)
+showInstruction d (Enter x) = (iStr "Enter ") `iAppend` (showArg d x)
+showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
+
+showArg d (Arg m)      = (iStr "Arg ")   `iAppend` (iNum m)
+showArg d (Code il)    = (iStr "Code ")  `iAppend` (showInstructions d il)
+showArg d (Label s)    = (iStr "Label ") `iAppend` (iStr s)
+showArg d (IntConst n) = (iStr "IntConst ") `iAppend` (iNum n)
+
+nTerse = 3
