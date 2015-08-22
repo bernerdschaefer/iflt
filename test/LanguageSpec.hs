@@ -5,6 +5,16 @@ import Language
 
 spec :: Spec
 spec = do
+  describe "parse" $ do
+    it "does not raise an error" $ do
+      let program = parse "f = 3 ;                              \n\
+                          \g x y = let z = x in z ;             \n\
+                          \h x = case (let y = x in y) of       \n\
+                          \        <2> -> 2 ;                   \n\
+                          \        <2> -> 5                       "
+
+      program `shouldNotBe` []
+
   describe "clex" $ do
     it "handles multicharacter tokens" $ do
       let tokens = clex "== ~= >= <= ->"

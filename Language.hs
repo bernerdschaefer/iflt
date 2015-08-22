@@ -431,7 +431,7 @@ pAlters :: Parser [CoreAlt]
 pAlters = pOneOrMoreWithSep pAlter (pLit ";")
 
 pAlter :: Parser CoreAlt
-pAlter = pThen4 mkAlt pTag pVars pArrow pExpr
+pAlter = pThen4 mkAlt pTag pVars (pLit "->") pExpr
          where
            mkAlt tag vars _ expr = (tag, vars, expr)
 
@@ -441,9 +441,6 @@ pTag = pThen3 mkTag (pLit "<") pNum (pLit ">")
 
 pVars :: Parser [Name]
 pVars = pZeroOrMore pVar
-
-pArrow = pThen mkArrow (pLit "-") (pLit ">")
-           where mkArrow _ _ = "->"
 
 pPack = pThen4 keepThird (pLit "Pack") (pLit "{")  pConstr (pLit "}")
           where keepThird _ _ constr _ = constr
