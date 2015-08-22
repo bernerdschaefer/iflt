@@ -32,6 +32,8 @@ spec = do
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
 
       (head vstack) `shouldBe` 6
+      let steps = statGetSteps stats
+      steps `shouldSatisfy` (< 288) -- steps before if inlining
 
     it "implements efficient arithmetic" $ do
       let

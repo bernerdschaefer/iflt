@@ -224,6 +224,8 @@ compileSC env (name, args, body)
       instructions args = Take (length args) : compiledBody
 
 compileR :: CoreExpr -> CompilerEnv -> [Instruction]
+compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env
+  = [Push (Code [ Cond (compileR e1 env) (compileR e2 env) ]), Enter (compileA n env)]
 compileR (EAp (EAp (EVar "+") e1) e2) env = compileB (EAp (EAp (EVar "+") e1) e2) env [Return]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
