@@ -187,7 +187,18 @@ compile program
 initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
 initialDump        = DummyDump
-compiledPrimitives = []
+compiledPrimitives = [
+  ("+", [Take 2,
+         Push (Code [ Push (Code [Op Add, Return]),
+                      Enter (Arg 1)
+              ]),
+        Enter (Arg 2) ]),
+  ("*", [Take 2,
+         Push (Code [ Push (Code [Op Mult, Return]),
+                      Enter (Arg 1)
+              ]),
+        Enter (Arg 2) ])
+  ]
 
 type CompilerEnv = [(Name, AMode)]
 
@@ -252,8 +263,13 @@ step ((PushV FramePtr:instr), (FrameInt n), stack, vstack, dump, heap, cstore, s
 step ([Return], fptr, ((i', f'):stack), vstack, dump, heap, cstore, stats)
   = (i', f', stack, vstack, dump, heap, cstore, stats)
 
-step (instr, fptr, stack, vstack, dump, heap, cstore, stats)
-  = error ("Unknown instruction " ++ (show (head instr)))
+step ((Op Add:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
+  = (instr, fptr, stack, (n1 + n2):vstack, dump, heap, cstore, stats)
+
+step ((Op Mult:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
+  = (instr, fptr, stack, (n1 * n2):vstack, dump, heap, cstore, stats)
+
+step state = error ("No match found for state: " ++ iDisplay (showState state))
 
 amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
 amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
@@ -274,8 +290,12 @@ showState (instr, fptr, stack, vstack, dump, heap, cstore, stats)
       showDump dump,
       iNewline ]
 
-showValueStack _ = iStr "[vstack]" `iAppend` iNewline
 showDump _       = iStr "[dump]" `iAppend` iNewline
+
+showValueStack vstack
+  = iConcat [ iStr "Value stack: [",
+              iIndent (iInterleave iNewline (map iNum vstack)),
+              iStr "]", iNewline ]
 
 showFrame heap FrameNull = iStr "FramePtr (null)" `iAppend` iNewline
 showFrame heap (FrameInt i)
@@ -323,6 +343,10 @@ showInstructions Full il
 showInstruction d (Take m)  = (iStr "Take ")  `iAppend` (iNum m)
 showInstruction d (Enter x) = (iStr "Enter ") `iAppend` (showArg d x)
 showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
+showInstruction d (Return)  = (iStr "Return")
+showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
+showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
+showInstruction d i         = error ("Unknown instruction " ++ show i)
 
 showArg d (Arg m)      = (iStr "Arg ")   `iAppend` (iNum m)
 showArg d (Code il)    = (iStr "Code ")  `iAppend` (showInstructions d il)

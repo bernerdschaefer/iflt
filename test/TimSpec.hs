@@ -11,14 +11,11 @@ spec = do
       let states = eval $ compile $ parse "f = I ; main = f 1"
           (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
 
-      instr `shouldBe` []
-      fptr `shouldBe` (FrameInt 1)
+      (head vstack) `shouldBe` 1
 
     it "handles simple arithmetic" $ do
       let
-        states = eval $ compile $ parse "four = * 2 2 ; main = + four four"
+        states = eval $ compile $ parse "four = 2 * 2 ; main = four + four"
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
 
-      instr `shouldBe` []
-      fptr `shouldBe` (FrameInt 8)
-
+      (head vstack) `shouldBe` 8
