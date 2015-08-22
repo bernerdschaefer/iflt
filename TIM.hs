@@ -46,6 +46,18 @@ import qualified Utils as U
 --
 --    4.9   [Enter (IntConst N)]  f  s  h  c
 --    ==>                intCode  N  s  h  c
+--
+--    4.10  Op Sub : i  f  s    n1 : n2 : v  h  c
+--    ==>            i  f  s  (n1 - n2) : v  h  c
+--
+--    4.11  [Return]  f   (i',f') : s  v  h  c
+--    ==>         i'  f'            s  v  h  c
+--
+--    PushV pushes the number masquerading as the frame pointer
+--    to the top of the value stack.
+--
+--    4.12  PushV FramePtr : i  n  s      v  h  c
+--      =>                   i  n  s  n : v  h  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -66,7 +78,15 @@ showFullResults states
 data Instruction = Take Int
                  | Enter AMode
                  | Push AMode
+                 | PushV ValueAMode
+                 | Op Op
+                 | Cond [Instruction] [Instruction]
+                 | Return
                  deriving (Eq, Show)
+
+data Op = Add | Sub | Mult | Div | Neg
+        | Gr | GrEq | Lt | LtEq | Eq | NotEq
+        deriving (Eq, Show)
 
 data AMode = Arg Int
               | Label String
@@ -74,8 +94,12 @@ data AMode = Arg Int
               | IntConst Int
               deriving (Eq, Show)
 
--- intCode produces an empty code sequence
-intCode = []
+data ValueAMode = FramePtr
+                | IntVConst Int
+                deriving (Eq, Show)
+
+-- push the integer masquerading as a frame pointer and return
+intCode = [PushV FramePtr, Return]
 
 type State = ([Instruction], -- the current instruction stream
                  FramePtr,   -- address of current frame
@@ -94,8 +118,8 @@ data FramePtr = FrameAddr U.Addr  -- the address of a frame
 type Stack = [Closure]
 type Closure  = ([Instruction], FramePtr)
 
--- placeholder types for value stack and dump types
-data ValueStack = DummyValueStack
+type ValueStack = [Int]
+
 data Dump = DummyDump
 
 type Heap = U.Heap Frame
@@ -160,8 +184,8 @@ compile program
          initialEnv = [ (name, Label name) | (name, args, body) <- scDefs ]
                       ++ [(name, Label name) | (name, code) <- compiledPrimitives ]
 
-initialArgStack    = []
-initialValueStack  = DummyValueStack
+initialArgStack    = [([], FrameNull)]
+initialValueStack  = []
 initialDump        = DummyDump
 compiledPrimitives = []
 
@@ -221,6 +245,15 @@ step ((Push am:instr), fptr, stack, vstack, dump, heap, cstore, stats)
   = (instr, fptr, stack', vstack, dump, heap, cstore, stats)
     where
       stack' = (amToClosure am fptr heap cstore) : stack
+
+step ((PushV FramePtr:instr), (FrameInt n), stack, vstack, dump, heap, cstore, stats)
+  = (instr, (FrameInt n), stack, n : vstack, dump, heap, cstore, stats)
+
+step ([Return], fptr, ((i', f'):stack), vstack, dump, heap, cstore, stats)
+  = (i', f', stack, vstack, dump, heap, cstore, stats)
+
+step (instr, fptr, stack, vstack, dump, heap, cstore, stats)
+  = error ("Unknown instruction " ++ (show (head instr)))
 
 amToClosure (Arg n)      fptr heap cstore = fGet heap fptr n
 amToClosure (Label l)    fptr heap cstore = (codeLookup cstore l, fptr)
