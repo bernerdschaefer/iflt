@@ -224,15 +224,22 @@ compileSC env (name, args, body)
       instructions args = Take (length args) : compiledBody
 
 compileR :: CoreExpr -> CompilerEnv -> [Instruction]
+compileR (EAp (EAp (EVar "+") e1) e2) env = compileB (EAp (EAp (EVar "+") e1) e2) env [Return]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
-compileR (ENum n)    env = [Enter (compileA (ENum n) env)]
+compileR (ENum n)    env = compileB (ENum n) env [Return]
 compileR e           env = error "compileR: unsupported call"
 
 compileA :: CoreExpr -> CompilerEnv -> AMode
 compileA (EVar v) env = U.aLookup env v (error ("unknown variable " ++ v))
 compileA (ENum n) env = IntConst n
 compileA e        env = Code (compileR e env)
+
+compileB :: CoreExpr -> CompilerEnv -> [Instruction] -> [Instruction]
+compileB (ENum n) env cont = PushV (IntVConst n) : cont
+compileB (EAp (EAp (EVar "+") e1) e2) env cont
+  = compileB (e2) env (compileB e1 env (Op Add : cont))
+compileB e env cont = Push (Code cont) : (compileR e env)
 
 eval state
   = state : restStates

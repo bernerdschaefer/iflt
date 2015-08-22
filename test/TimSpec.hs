@@ -33,3 +33,13 @@ spec = do
 
       (head vstack) `shouldBe` 6
 
+    it "implements efficient arithmetic" $ do
+      let
+        program = "f x y z = (x + y) * z ; \n\
+                  \g = 1 ;                 \n\
+                  \main = f g 2 3            "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 9
+      let steps = statGetSteps stats
+      steps `shouldSatisfy` (< 32) -- 33 steps before B compilation
