@@ -23,3 +23,13 @@ spec = do
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
 
       (head vstack) `shouldBe` 8
+
+    it "handles conditions" $ do
+      let
+        program = "factorial n = if n 1 (n * factorial (n - 1)) ; \n\
+                  \main = factorial 3                               "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+
+      (head vstack) `shouldBe` 6
+

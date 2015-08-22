@@ -58,6 +58,11 @@ import qualified Utils as U
 --
 --    4.12  PushV FramePtr : i  n  s      v  h  c
 --      =>                   i  n  s  n : v  h  c
+--
+--    4.13  [Cond i1 i2]  f  s  0 : v  h  c
+--      =>            i1  f  s      v  h  c
+--          [Cond i1 i2]  f  s  n : v  h  c
+--      =>            i2  f  s      v  h  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -191,12 +196,18 @@ compiledPrimitives = [
     ("+", mkArtithOp (Op Add)),
     ("-", mkArtithOp (Op Sub)),
     ("*", mkArtithOp (Op Mult)),
-    ("/", mkArtithOp (Op Div))
+    ("/", mkArtithOp (Op Div)),
+    ("if", compiledIf)
   ]
 
 mkArtithOp (Op op) = [ Take 2,
                        Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
                        Enter (Arg 2) ]
+
+compiledIf
+  = [ Take 3,
+      Push (Code [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]),
+      Enter (Arg 1) ]
 
 type CompilerEnv = [(Name, AMode)]
 
@@ -272,6 +283,12 @@ step ((Op Sub:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
 
 step ((Op Div:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
   = (instr, fptr, stack, (n1 `div` n2):vstack, dump, heap, cstore, stats)
+
+step ([Cond i1 i2], fptr, stack, 0:vstack, dump, heap, cstore, stats)
+  = (i1, fptr, stack, vstack, dump, heap, cstore, stats)
+
+step ([Cond i1 i2], fptr, stack, n:vstack, dump, heap, cstore, stats)
+  = (i2, fptr, stack, vstack, dump, heap, cstore, stats)
 
 step state = error ("No match found for state: " ++ iDisplay (showState state))
 
@@ -350,7 +367,13 @@ showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
 showInstruction d (Return)  = (iStr "Return")
 showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
 showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
-showInstruction d i         = error ("Unknown instruction " ++ show i)
+
+showInstruction d (Cond i1 i2)
+  = iConcat [ iStr "Cond [",
+              iIndent (iInterleave iNewline [(showInstructions d i1), (showInstructions d i2)]),
+              iStr "]", iNewline ]
+
+showInstruction d i = error ("Unknown instruction " ++ show i)
 
 showArg d (Arg m)      = (iStr "Arg ")   `iAppend` (iNum m)
 showArg d (Code il)    = (iStr "Code ")  `iAppend` (showInstructions d il)
