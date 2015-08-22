@@ -242,6 +242,15 @@ type Token = String -- a token is a non-empty string
 
 clex (c:cs) | isWhitespace c = clex cs
 
+clex (c1:c2:cs) | isTwoCharOp c1 c2 = [c1, c2] : clex cs
+  where
+    isTwoCharOp '=' '=' = True
+    isTwoCharOp '~' '=' = True
+    isTwoCharOp '>' '=' = True
+    isTwoCharOp '<' '=' = True
+    isTwoCharOp '-' '>' = True
+    isTwoCharOp _   _   = False
+
 clex (c:cs) | isAlpha c = varToken : clex restCs
       where
         varToken = c : takeWhile isIdChar cs

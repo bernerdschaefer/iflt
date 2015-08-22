@@ -5,6 +5,12 @@ import Language
 
 spec :: Spec
 spec = do
+  describe "clex" $ do
+    it "handles multicharacter tokens" $ do
+      let tokens = clex "== ~= >= <= ->"
+
+      tokens `shouldBe` ["==", "~=", ">=", "<=", "->"]
+
   describe "pExpr" $ do
     context "operator precedence and associativity" $ do
       it "|" $ do
