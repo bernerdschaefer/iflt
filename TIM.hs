@@ -227,33 +227,55 @@ compileSC :: CompilerEnv -> CoreScDefn -> (Name, [Instruction])
 compileSC env (name, args, body)
   = (name, instructions args)
     where
-      compiledBody = compileR body newEnv
+      n = (length args)
+      (d', compiledBody) = compileR body newEnv n
       newEnv = (zip args (map Arg [1..])) ++ env
       instructions []   = compiledBody -- CAF optimization
-      instructions args = Take (length args) (length args) : compiledBody
+      instructions args = Take d' n : compiledBody
 
-compileR :: CoreExpr -> CompilerEnv -> [Instruction]
-compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env
-  = [Push (Code [ Cond (compileR e1 env) (compileR e2 env) ]), Enter (compileA n env)]
-compileR (EAp (EAp (EVar "<") e1) e2) env = compileB (EAp (EAp (EVar "<") e1) e2) env [Return]
-compileR (EAp (EAp (EVar "+") e1) e2) env = compileB (EAp (EAp (EVar "+") e1) e2) env [Return]
-compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
-compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
-compileR (ENum n)    env = compileB (ENum n) env [Return]
-compileR e           env = error ("compileR: unsupported call " ++ (show e))
+compileR :: CoreExpr -> CompilerEnv -> Int -> (Int, [Instruction])
 
-compileA :: CoreExpr -> CompilerEnv -> AMode
-compileA (EVar v) env = U.aLookup env v (error ("unknown variable " ++ v))
-compileA (ENum n) env = IntConst n
-compileA e        env = Code (compileR e env)
+compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env d
+  = (d3, [Push (Code [Cond i1 i2]), Enter am])
+    where
+      (d1, i1) = compileR e1 env d
+      (d2, i2) = compileR e2 env d1
+      (d3, am) = compileA n env d2
 
-compileB :: CoreExpr -> CompilerEnv -> [Instruction] -> [Instruction]
-compileB (ENum n) env cont = PushV (IntVConst n) : cont
-compileB (EAp (EAp (EVar "+") e1) e2) env cont
-  = compileB (e2) env (compileB e1 env (Op Add : cont))
-compileB (EAp (EAp (EVar "<") e1) e2) env cont
-  = compileB (e2) env (compileB e1 env (Op Lt : cont))
-compileB e env cont = Push (Code cont) : (compileR e env)
+compileR (EAp (EAp (EVar "<") e1) e2) env d = compileB (EAp (EAp (EVar "<") e1) e2) env d [Return]
+compileR (EAp (EAp (EVar "+") e1) e2) env d = compileB (EAp (EAp (EVar "+") e1) e2) env d [Return]
+
+compileR (ENum n) env d = (d', is)
+  where (d', is) = compileB (ENum n) env d [Return]
+
+compileR (EAp e1 e2) env d = (d2, Push am : is)
+  where
+    (d1, am) = compileA e2 env d
+    (d2, is) = compileR e1 env d1
+
+compileR (EVar v) env d = (d', [Enter is])
+  where (d', is) = compileA (EVar v) env d
+
+compileR e env d = error ("compileR: unsupported call " ++ (show e))
+
+compileA :: CoreExpr -> CompilerEnv -> Int -> (Int, AMode)
+compileA (EVar v) env d = (d, U.aLookup env v (error ("unknown variable " ++ v)))
+compileA (ENum n) env d = (d, IntConst n)
+compileA e        env d = (d', Code is)
+  where (d', is) = compileR e env d
+
+compileB :: CoreExpr -> CompilerEnv -> Int -> [Instruction] -> (Int, [Instruction])
+compileB (ENum n) env d cont = (d, PushV (IntVConst n) : cont)
+compileB (EAp (EAp (EVar "+") e1) e2) env d cont = (d2, i2)
+  where
+    (d1, i1) = compileB e1 env d  (Op Add : cont)
+    (d2, i2) = compileB e2 env d1 i1
+compileB (EAp (EAp (EVar "<") e1) e2) env d cont = (d2, i2)
+  where
+    (d1, i1) = compileB e1 env d  (Op Lt : cont)
+    (d2, i2) = compileB e2 env d1 i1
+compileB e env d cont = (d', Push (Code cont) : is)
+  where (d', is) = (compileR e env d)
 
 eval state
   = state : restStates
