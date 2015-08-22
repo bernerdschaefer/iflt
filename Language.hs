@@ -466,8 +466,15 @@ pExpr3c = (pThen FoundOp pRelop pExpr4) `pAlt` (pEmpty NoOp)
 pExpr3 :: Parser CoreExpr
 pExpr3 = pThen assembleOp pExpr4 pExpr3c
 
-pExpr4 :: Parser CoreExpr
-pExpr4 = pAp
+pExpr4c :: Parser PartialExpr
+pExpr4c = (pThen FoundOp (pLit "+") pExpr4) `pAlt`
+          (pThen FoundOp (pLit "-") pExpr5) `pAlt`
+          (pEmpty NoOp)
+
+pExpr4 = pThen assembleOp pExpr5 pExpr4c
+
+pExpr5 :: Parser CoreExpr
+pExpr5 = pAp
 
 assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
 assembleOp e1 NoOp            = e1
