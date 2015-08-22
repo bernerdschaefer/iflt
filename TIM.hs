@@ -240,7 +240,7 @@ compileR (EAp (EAp (EVar "+") e1) e2) env = compileB (EAp (EAp (EVar "+") e1) e2
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
 compileR (ENum n)    env = compileB (ENum n) env [Return]
-compileR e           env = error "compileR: unsupported call"
+compileR e           env = error ("compileR: unsupported call " ++ (show e))
 
 compileA :: CoreExpr -> CompilerEnv -> AMode
 compileA (EVar v) env = U.aLookup env v (error ("unknown variable " ++ v))
@@ -274,11 +274,17 @@ final state                                                 = False
 applyToStats f (instr, frame, stack, vstack, dump, heap, cstore, stats)
   = (instr, frame, stack, vstack, dump, heap, cstore, f stats)
 
-step ((Take _ n:instr), fptr, stack, vstack, dump, heap, cstore, stats)
+step ((Take t n:instr), fptr, stack, vstack, dump, heap, cstore, stats)
   | length stack >= n = (instr, fptr', (drop n stack), vstack, dump, heap', cstore, stats)
   | otherwise         = error "Too few args for Take"
     where
-      (heap', fptr') = fAlloc heap (take n stack)
+      (heap', fptr') = fAlloc heap frames
+      frames = (take n stack) ++ (take (t - n) (repeat ([], FrameNull)))
+
+step ((Move i a:instr), fptr, stack, vstack, dump, heap, cstore, stats)
+  = (instr, fptr, stack, vstack, dump, heap', cstore, stats)
+    where
+      heap' = fUpdate heap fptr i (amToClosure a fptr heap cstore)
 
 step ([Enter am], fptr, stack, vstack, dump, heap, cstore, stats)
   = (instr', fptr', stack, vstack, dump, heap, cstore, stats)
