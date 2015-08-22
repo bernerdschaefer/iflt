@@ -63,6 +63,9 @@ import qualified Utils as U
 --      =>            i1  f  s      v  h  c
 --          [Cond i1 i2]  f  s  n : v  h  c
 --      =>            i2  f  s      v  h  c
+--
+--    4.14  PushV (IntVConst n) : i  f  s      v  h  c
+--      =>                        i  f  s  n : v  h  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -268,6 +271,9 @@ step ((Push am:instr), fptr, stack, vstack, dump, heap, cstore, stats)
 
 step ((PushV FramePtr:instr), (FrameInt n), stack, vstack, dump, heap, cstore, stats)
   = (instr, (FrameInt n), stack, n : vstack, dump, heap, cstore, stats)
+
+step ((PushV (IntVConst n):instr), fptr, stack, vstack, dump, heap, cstore, stats)
+  = (instr, fptr, stack, n : vstack, dump, heap, cstore, stats)
 
 step ([Return], fptr, ((i', f'):stack), vstack, dump, heap, cstore, stats)
   = (i', f', stack, vstack, dump, heap, cstore, stats)
