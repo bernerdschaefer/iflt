@@ -188,8 +188,10 @@ initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
 initialDump        = DummyDump
 compiledPrimitives = [
-  ("+", mkArtithOp (Op Add)),
-  ("*", mkArtithOp (Op Mult))
+    ("+", mkArtithOp (Op Add)),
+    ("-", mkArtithOp (Op Sub)),
+    ("*", mkArtithOp (Op Mult)),
+    ("/", mkArtithOp (Op Div))
   ]
 
 mkArtithOp (Op op) = [ Take 2,
@@ -264,6 +266,12 @@ step ((Op Add:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
 
 step ((Op Mult:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
   = (instr, fptr, stack, (n1 * n2):vstack, dump, heap, cstore, stats)
+
+step ((Op Sub:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
+  = (instr, fptr, stack, (n1 - n2):vstack, dump, heap, cstore, stats)
+
+step ((Op Div:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
+  = (instr, fptr, stack, (n1 `div` n2):vstack, dump, heap, cstore, stats)
 
 step state = error ("No match found for state: " ++ iDisplay (showState state))
 

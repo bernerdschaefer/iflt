@@ -15,7 +15,11 @@ spec = do
 
     it "handles simple arithmetic" $ do
       let
-        states = eval $ compile $ parse "four = 2 * 2 ; main = four + four"
+        program = "four = two * two ;   \n\
+                  \two  = 10 / five ;   \n\
+                  \five = 6 - 2 ;       \n\
+                  \main = four + four     "
+        states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
 
       (head vstack) `shouldBe` 8
