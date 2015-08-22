@@ -17,7 +17,7 @@ data Expr a
     (Expr a)        -- Expression to scrutinize
     [Alter a]       -- Alternatives
   | ELam [a] (Expr a) -- Lambda abstractions
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- use Name as the binding type for Expr
 type CoreExpr = Expr Name
@@ -386,7 +386,7 @@ pSc = pThen4 mkSc pVar (pZeroOrMore pVar) (pLit "=") pExpr
           mkSc name vars _ body = (name, vars, body)
 
 pExpr :: Parser CoreExpr
-pExpr = pAp `pAlt` pLet `pAlt` pCase `pAlt` pLam `pAlt` pAexpr
+pExpr = pLet `pAlt` pCase `pAlt` pLam `pAlt` pExpr1
 
 pAexpr = (pNum `pApply` ENum)
            `pAlt` (pVar `pApply` EVar)
@@ -444,6 +444,21 @@ pConstr = pThen3 mkConstr pNum (pLit ",") pNum
 
 pAp :: Parser CoreExpr
 pAp = (pOneOrMore pAexpr) `pApply` mkApChain
+
+data PartialExpr = NoOp | FoundOp Name CoreExpr
+
+pExpr1c :: Parser PartialExpr
+pExpr1c = (pThen FoundOp (pLit "|") pExpr1) `pAlt` (pEmpty NoOp)
+
+pExpr1 :: Parser CoreExpr
+pExpr1 = pThen assembleOp pExpr2 pExpr1c
+
+pExpr2 :: Parser CoreExpr
+pExpr2 = pAp
+
+assembleOp :: CoreExpr -> PartialExpr -> CoreExpr
+assembleOp e1 NoOp            = e1
+assembleOp e1 (FoundOp op e2) = EAp (EAp (EVar op) e1) e2
 
 mkApChain :: [CoreExpr] -> CoreExpr
 mkApChain (x : []) = x
