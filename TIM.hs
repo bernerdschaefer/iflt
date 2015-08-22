@@ -188,17 +188,13 @@ initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
 initialDump        = DummyDump
 compiledPrimitives = [
-  ("+", [Take 2,
-         Push (Code [ Push (Code [Op Add, Return]),
-                      Enter (Arg 1)
-              ]),
-        Enter (Arg 2) ]),
-  ("*", [Take 2,
-         Push (Code [ Push (Code [Op Mult, Return]),
-                      Enter (Arg 1)
-              ]),
-        Enter (Arg 2) ])
+  ("+", mkArtithOp (Op Add)),
+  ("*", mkArtithOp (Op Mult))
   ]
+
+mkArtithOp (Op op) = [ Take 2,
+                       Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
+                       Enter (Arg 2) ]
 
 type CompilerEnv = [(Name, AMode)]
 
