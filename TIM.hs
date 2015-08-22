@@ -9,11 +9,12 @@ import qualified Utils as U
 --      (instructions, frame pointer, stack, heap, code store)
 --      (i, f, s, h, c)
 --
---    Take n makes the top n stack elements into a new frame
---    and makes the current frame pointer point to it.
+--    Take t n allocates a frame of size t,
+--    takes n closures from the stack,
+--    and puts them into the first n locations of the frame.
 --
---    4.1   Take N : i  f  c1 : ... : cN : s  h                    c
---    ==>            i  f'                 s  h[f' : <c1,...,cN>]  c
+--    4.1   Take T N : i  f  c1 : ... : cN : s  h                    c
+--    ==>              i  f'                 s  h[f' : <c1,...,cN>]  c
 --
 --    Push (Arg K) fetches the Kth closure from the current frame
 --    and pushes it onto the stack.
@@ -66,6 +67,12 @@ import qualified Utils as U
 --
 --    4.14  PushV (IntVConst n) : i  f  s      v  h  c
 --      =>                        i  f  s  n : v  h  c
+--
+--    Move i a moves the new closure a
+--    into slot i of the current frame.
+--
+--    4.15  (Move i a) : i  f       s  v  h  c
+--      =>               i  f[i:a]  s  v  h  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -83,7 +90,7 @@ showFullResults states
       showStats (last states)
     ])
 
-data Instruction = Take Int
+data Instruction = Take Int Int
                  | Enter AMode
                  | Push AMode
                  | PushV ValueAMode
@@ -204,12 +211,12 @@ compiledPrimitives = [
     ("if", compiledIf)
   ]
 
-mkArithOp (Op op) = [ Take 2,
+mkArithOp (Op op) = [ Take 2 2,
                       Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
                       Enter (Arg 2) ]
 
 compiledIf
-  = [ Take 3,
+  = [ Take 3 3,
       Push (Code [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]),
       Enter (Arg 1) ]
 
@@ -222,7 +229,7 @@ compileSC env (name, args, body)
       compiledBody = compileR body newEnv
       newEnv = (zip args (map Arg [1..])) ++ env
       instructions []   = compiledBody -- CAF optimization
-      instructions args = Take (length args) : compiledBody
+      instructions args = Take (length args) (length args) : compiledBody
 
 compileR :: CoreExpr -> CompilerEnv -> [Instruction]
 compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env
@@ -266,7 +273,7 @@ final state                                                 = False
 applyToStats f (instr, frame, stack, vstack, dump, heap, cstore, stats)
   = (instr, frame, stack, vstack, dump, heap, cstore, f stats)
 
-step ((Take n:instr), fptr, stack, vstack, dump, heap, cstore, stats)
+step ((Take _ n:instr), fptr, stack, vstack, dump, heap, cstore, stats)
   | length stack >= n = (instr, fptr', (drop n stack), vstack, dump, heap', cstore, stats)
   | otherwise         = error "Too few args for Take"
     where
@@ -384,7 +391,7 @@ showInstructions Full il
       sep = iStr "," `iAppend` iNewline
       instrs = map (showInstruction Full) il
 
-showInstruction d (Take m)  = (iStr "Take ")  `iAppend` (iNum m)
+showInstruction d (Take t n)  = iConcat [iStr "Take ", iNum t, iStr " ", iNum n]
 showInstruction d (Enter x) = (iStr "Enter ") `iAppend` (showArg d x)
 showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
 showInstruction d (Return)  = (iStr "Return")
