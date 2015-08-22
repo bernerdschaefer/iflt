@@ -71,8 +71,8 @@ import qualified Utils as U
 --    Move i a moves the new closure a
 --    into slot i of the current frame.
 --
---    4.15  (Move i a) : i  f       s  v  h  c
---      =>               i  f[i:a]  s  v  h  c
+--    4.15  (Move i a) : i  f  s  v  h              c
+--      =>               i  f  s  v  h[f : <i: a>]  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -97,6 +97,7 @@ data Instruction = Take Int Int
                  | Op Op
                  | Cond [Instruction] [Instruction]
                  | Return
+                 | Move Int AMode
                  deriving (Eq, Show)
 
 data Op = Add | Sub | Mult | Div | Neg
@@ -396,6 +397,7 @@ showInstruction d (Enter x) = (iStr "Enter ") `iAppend` (showArg d x)
 showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
 showInstruction d (Return)  = (iStr "Return")
 showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
+showInstruction d (Move i a) = (iStr "Move ") `iAppend` (iNum i) `iAppend` (showArg d a)
 showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
 
 showInstruction d (Cond i1 i2)
