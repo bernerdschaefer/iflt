@@ -45,3 +45,13 @@ spec = do
       (head vstack) `shouldBe` 9
       let steps = statGetSteps stats
       steps `shouldSatisfy` (< 32) -- 33 steps before B compilation
+
+    it "implements efficient comparisons" $ do
+      let
+        program = "fib n = if (n < 2) 1 (fib (n - 1) + fib (n - 2)) ; \n\
+                  \main = fib 6                                         "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 8
+      let steps = statGetSteps stats
+      steps `shouldSatisfy` (< 777) -- steps before inlining

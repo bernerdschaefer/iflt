@@ -196,16 +196,17 @@ initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
 initialDump        = DummyDump
 compiledPrimitives = [
-    ("+", mkArtithOp (Op Add)),
-    ("-", mkArtithOp (Op Sub)),
-    ("*", mkArtithOp (Op Mult)),
-    ("/", mkArtithOp (Op Div)),
+    ("+", mkArithOp (Op Add)),
+    ("-", mkArithOp (Op Sub)),
+    ("*", mkArithOp (Op Mult)),
+    ("/", mkArithOp (Op Div)),
+    ("<", mkArithOp (Op Lt)),
     ("if", compiledIf)
   ]
 
-mkArtithOp (Op op) = [ Take 2,
-                       Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
-                       Enter (Arg 2) ]
+mkArithOp (Op op) = [ Take 2,
+                      Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
+                      Enter (Arg 2) ]
 
 compiledIf
   = [ Take 3,
@@ -226,6 +227,7 @@ compileSC env (name, args, body)
 compileR :: CoreExpr -> CompilerEnv -> [Instruction]
 compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env
   = [Push (Code [ Cond (compileR e1 env) (compileR e2 env) ]), Enter (compileA n env)]
+compileR (EAp (EAp (EVar "<") e1) e2) env = compileB (EAp (EAp (EVar "<") e1) e2) env [Return]
 compileR (EAp (EAp (EVar "+") e1) e2) env = compileB (EAp (EAp (EVar "+") e1) e2) env [Return]
 compileR (EAp e1 e2) env = Push (compileA e2 env) : compileR e1 env
 compileR (EVar v)    env = [Enter (compileA (EVar v) env)]
@@ -241,6 +243,8 @@ compileB :: CoreExpr -> CompilerEnv -> [Instruction] -> [Instruction]
 compileB (ENum n) env cont = PushV (IntVConst n) : cont
 compileB (EAp (EAp (EVar "+") e1) e2) env cont
   = compileB (e2) env (compileB e1 env (Op Add : cont))
+compileB (EAp (EAp (EVar "<") e1) e2) env cont
+  = compileB (e2) env (compileB e1 env (Op Lt : cont))
 compileB e env cont = Push (Code cont) : (compileR e env)
 
 eval state
@@ -298,6 +302,10 @@ step ((Op Sub:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
 
 step ((Op Div:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
   = (instr, fptr, stack, (n1 `div` n2):vstack, dump, heap, cstore, stats)
+
+step ((Op Lt:instr), fptr, stack, (n1:n2:vstack), dump, heap, store, stats)
+  = (instr, fptr, stack, isLt:vstack, dump, heap, store, stats)
+    where isLt | (n2 < n1) = 1 | otherwise = 0
 
 step ([Cond i1 i2], fptr, stack, 0:vstack, dump, heap, cstore, stats)
   = (i1, fptr, stack, vstack, dump, heap, cstore, stats)
