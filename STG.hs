@@ -20,14 +20,29 @@ data Closure = Closure { vars :: [Name]
                        , varValues :: [Int]
                        } deriving (Show)
 
+type GlobalEnv = [(Name, Addr)]
+type LocalEnv = [(Name, Value)]
+
 type Stack = [Value]
 
 type Heap = U.Heap Closure
 
 type Addr = U.Addr
 
-data Code = DummyCode deriving (Show)
+type Code = [Instruction]
 
 data Value = Addr
            | IntConst Int
            deriving (Show)
+
+data Instruction = Eval Code LocalEnv
+                 | Enter Addr
+                 | ReturnCon Int [Value]
+                 | ReturnInt Int
+                 deriving (Show)
+
+val local global (ENum n) = IntConst n
+val local global (EVar v)
+  = U.aLookup local v (U.aLookup global v (error ("unknown variable " ++ v)))
+val local global [] = []
+val local global x:xs = (val local global x) : (val local global xs)
