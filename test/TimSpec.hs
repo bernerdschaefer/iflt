@@ -64,3 +64,13 @@ spec = do
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 3
+
+    it "supports basic letrec" $ do
+      let
+        program = "f x = letrec p = 1 ; \n\
+                  \             q = p   \n\
+                  \      in p + q;      \n\
+                  \main = f 1             "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 2

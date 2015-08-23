@@ -248,7 +248,7 @@ compileR (EAp (EAp (EVar "+") e1) e2) env d = compileB (EAp (EAp (EVar "+") e1) 
 compileR (ENum n) env d = (d', is)
   where (d', is) = compileB (ENum n) env d [Return]
 
-compileR (ELet False defns body) env d
+compileR (ELet isRec defns body) env d
   = (d', moves ++ is)
     where
       ((dn, env'), moves) = U.mapAccuml makeMove (d, env) defns
@@ -256,7 +256,9 @@ compileR (ELet False defns body) env d
 
       makeMove (d, env) (name, e) = ((d', env'), Move (d + 1) am)
         where
-          (d', am) = compileA e env (d + 1)
+          compileEnv | isRec == True = env'
+                     | otherwise = env
+          (d', am) = compileA e compileEnv (d + 1)
           env' = env ++ [(name, (Arg (d + 1)))]
 
 compileR (EAp e1 e2) env d = (d2, Push am : is)
