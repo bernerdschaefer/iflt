@@ -237,8 +237,8 @@ compiledPrimitives = [
   ]
 
 mkOp2 (Op op) = [ Take 2 2,
-                  Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
-                  Enter (Arg 2) ]
+                  Push (Code (Push (Code [Op op, Return]) : mkEnter (Arg 1)))
+                ] ++ mkEnter (Arg 2)
 
 type CompilerEnv = [(Name, AMode)]
 
@@ -255,7 +255,7 @@ compileSC env (name, args, body)
 compileR :: CoreExpr -> CompilerEnv -> Int -> (Int, [Instruction])
 
 compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env d
-  = (d3, [Push (Code [Cond i1 i2]), Enter am])
+  = (d3, Push (Code [Cond i1 i2]): mkEnter am)
     where
       (d1, i1) = compileR e1 env d
       (d2, i2) = compileR e2 env d1
@@ -287,7 +287,7 @@ compileR (EAp e1 e2) env d = (d2, Push am : is)
     (d1, am) = compileA e2 env d
     (d2, is) = compileR e1 env d1
 
-compileR (EVar v) env d = (d', [Enter is])
+compileR (EVar v) env d = (d', mkEnter is)
   where (d', is) = compileA (EVar v) env d
 
 compileR e env d = error ("compileR: unsupported call " ++ (show e))
@@ -311,8 +311,15 @@ compileB (EAp (EAp (EVar "<") e1) e2) env d cont = (d2, i2)
 compileB e env d cont = (d', Push (Code cont) : is)
   where (d', is) = (compileR e env d)
 
+mkIndMode :: Int -> AMode
+mkIndMode n = Code (mkEnter (Arg n))
+
 mkUpdIndMode :: Int -> AMode
-mkUpdIndMode n = Code [PushMarker n, Enter (Arg n)]
+mkUpdIndMode n = Code (PushMarker n : mkEnter (Arg n))
+
+mkEnter :: AMode -> [Instruction]
+mkEnter (Code i) = i
+mkEnter other    = [Enter other]
 
 eval state
   = state : restStates
