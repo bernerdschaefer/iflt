@@ -467,7 +467,12 @@ pExpr2 = pThen assembleOp pExpr3 pExpr2c
 
 pExpr3c :: Parser PartialExpr
 pExpr3c = (pThen FoundOp pRelop pExpr4) `pAlt` (pEmpty NoOp)
-  where pRelop = (pLit "<") `pAlt` (pLit ">")
+  where pRelop = (pLit "<")
+                 `pAlt` (pLit ">")
+                 `pAlt` (pLit "==")
+                 `pAlt` (pLit "~=")
+                 `pAlt` (pLit ">=")
+                 `pAlt` (pLit "<=")
 
 pExpr3 :: Parser CoreExpr
 pExpr3 = pThen assembleOp pExpr4 pExpr3c

@@ -8,6 +8,7 @@ spec = do
   describe "parse" $ do
     it "does not raise an error" $ do
       let program = parse "f = 3 ;                              \n\
+                          \n x y = if (1 == 2) x y ;            \n\
                           \g x y = let z = x in z ;             \n\
                           \h x = case (let y = x in y) of       \n\
                           \        <2> -> 2 ;                   \n\
