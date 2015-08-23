@@ -74,3 +74,13 @@ spec = do
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 2
+
+    it "supports tricky letrec" $ do
+      let
+        program = "f x = letrec p = q ; \n\
+                  \             q = x   \n\
+                  \      in p + q;      \n\
+                  \main = f 1             "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 2

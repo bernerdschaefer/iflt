@@ -251,15 +251,17 @@ compileR (ENum n) env d = (d', is)
 compileR (ELet isRec defns body) env d
   = (d', moves ++ is)
     where
+      letEnv | isRec == True = env' ++ env
+             | otherwise     = env
+
       ((dn, env'), moves) = U.mapAccuml makeMove (d, env) defns
       (d', is) = compileR body env' dn
 
-      makeMove (d, env) (name, e) = ((d', env'), Move (d + 1) am)
+      makeMove (d, env) (name, e) = ((d', env'), Move d1 am)
         where
-          compileEnv | isRec == True = env'
-                     | otherwise = env
-          (d', am) = compileA e compileEnv (d + 1)
-          env' = env ++ [(name, (Arg (d + 1)))]
+          d1 = (d + 1)
+          (d', am) = compileA e letEnv d1
+          env' = [(name, mkIndMode d1)] ++ env
 
 compileR (EAp e1 e2) env d = (d2, Push am : is)
   where
@@ -289,6 +291,10 @@ compileB (EAp (EAp (EVar "<") e1) e2) env d cont = (d2, i2)
     (d2, i2) = compileB e2 env d1 i1
 compileB e env d cont = (d', Push (Code cont) : is)
   where (d', is) = (compileR e env d)
+
+mkIndMode :: Int -> AMode
+mkIndMode n = Code [Enter (Arg n)]
+
 
 eval state
   = state : restStates
