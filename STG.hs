@@ -35,14 +35,24 @@ data Value = Addr
            | IntConst Int
            deriving (Show)
 
-data Instruction = Eval Code LocalEnv
+data Instruction = Eval CoreExpr LocalEnv
                  | Enter Addr
                  | ReturnCon Int [Value]
                  | ReturnInt Int
                  deriving (Show)
 
+vals local global [] = []
+vals local global (x:xs) = (val local global x) : (vals local global xs)
+
 val local global (ENum n) = IntConst n
 val local global (EVar v)
   = U.aLookup local v (U.aLookup global v (error ("unknown variable " ++ v)))
-val local global [] = []
-val local global x:xs = (val local global x) : (val local global xs)
+
+initialState
+  = State { code = [Eval (EVar "main") []]
+          , args = []
+          , rets = []
+          , upds = []
+          , heap = U.hInitial
+          , env  = []
+          }
