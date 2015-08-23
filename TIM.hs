@@ -248,6 +248,17 @@ compileR (EAp (EAp (EVar "+") e1) e2) env d = compileB (EAp (EAp (EVar "+") e1) 
 compileR (ENum n) env d = (d', is)
   where (d', is) = compileB (ENum n) env d [Return]
 
+compileR (ELet False defns body) env d
+  = (d', moves ++ is)
+    where
+      ((dn, env'), moves) = U.mapAccuml makeMove (d, env) defns
+      (d', is) = compileR body env' dn
+
+      makeMove (d, env) (name, e) = ((d', env'), Move (d + 1) am)
+        where
+          (d', am) = compileA e env (d + 1)
+          env' = env ++ [(name, (Arg (d + 1)))]
+
 compileR (EAp e1 e2) env d = (d2, Push am : is)
   where
     (d1, am) = compileA e2 env d
@@ -425,7 +436,7 @@ showInstruction d (Enter x) = (iStr "Enter ") `iAppend` (showArg d x)
 showInstruction d (Push x)  = (iStr "Push ")  `iAppend` (showArg d x)
 showInstruction d (Return)  = (iStr "Return")
 showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
-showInstruction d (Move i a) = (iStr "Move ") `iAppend` (iNum i) `iAppend` (showArg d a)
+showInstruction d (Move i a) = iConcat[ iStr "Move ", iNum i, iStr " ", (showArg d a) ]
 showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
 
 showInstruction d (Cond i1 i2)

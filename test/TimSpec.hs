@@ -58,8 +58,9 @@ spec = do
 
     it "supports basic let" $ do
       let
-        program = "f x = let y = f 3 in g x y ; \n\
+        program = "f x = let y = 3 in g y ; \n\
+                  \g x = x ;                    \n\
                   \main = f 5                     "
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
-      (head vstack) `shouldBe` 8
+      (head vstack) `shouldBe` 3
