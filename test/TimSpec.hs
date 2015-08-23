@@ -3,6 +3,7 @@ module TimSpec (spec) where
 import Test.Hspec
 import Language
 import TIM
+import qualified Utils as U
 
 spec :: Spec
 spec = do
@@ -44,7 +45,7 @@ spec = do
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 9
       let steps = statGetSteps stats
-      steps `shouldSatisfy` (< 32) -- 33 steps before B compilation
+      steps `shouldSatisfy` (<= 35) -- 33 steps before B compilation
 
     it "implements efficient comparisons" $ do
       let
@@ -54,7 +55,17 @@ spec = do
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 8
       let steps = statGetSteps stats
-      steps `shouldSatisfy` (< 777) -- steps before inlining
+      steps `shouldSatisfy` (<= 824) -- steps before inlining
+
+    it "implements efficient let bindings" $ do
+      let
+        program = "f x = let y = 3 in g y y; \n\
+                  \g x x = x * x ;                     \n\
+                  \main = f 3                             "
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 9
+      (statGetSteps stats) `shouldSatisfy` (<= 30)
 
     it "supports basic let" $ do
       let
@@ -91,4 +102,4 @@ spec = do
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 3
-      (statGetSteps stats) `shouldSatisfy` (< 16)
+      (statGetSteps stats) `shouldSatisfy` (<= 17)
