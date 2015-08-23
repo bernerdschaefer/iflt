@@ -208,18 +208,12 @@ compiledPrimitives = [
     ("-", mkArithOp (Op Sub)),
     ("*", mkArithOp (Op Mult)),
     ("/", mkArithOp (Op Div)),
-    ("<", mkArithOp (Op Lt)),
-    ("if", compiledIf)
+    ("<", mkArithOp (Op Lt))
   ]
 
 mkArithOp (Op op) = [ Take 2 2,
                       Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
                       Enter (Arg 2) ]
-
-compiledIf
-  = [ Take 3 3,
-      Push (Code [ Cond [Enter (Arg 2)] [Enter (Arg 3)] ]),
-      Enter (Arg 1) ]
 
 type CompilerEnv = [(Name, AMode)]
 
