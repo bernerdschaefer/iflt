@@ -84,3 +84,11 @@ spec = do
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 2
+
+    it "supports updating" $ do
+      let
+        program = "f x = x x ; main = f (1 + 2)"
+        states = eval $ compile $ parse program
+        (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
+      (head vstack) `shouldBe` 3
+      (statGetSteps stats) `shouldSatisfy` (< 16)

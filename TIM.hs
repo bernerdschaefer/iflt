@@ -73,6 +73,19 @@ import qualified Utils as U
 --
 --    4.15  (Move i a) : i  f  s  v  h              c
 --      =>               i  f  s  v  h[f : <i: a>]  c
+--
+--    PushMarker x saves the stack, frame pointer,
+--    and index of the closure to update to the dump
+--    and continues with an empty stack.
+--
+--    4.15  PushMarker x : i  f   s  v              d  h  c
+--      =>                 i  f  []  v  (f, x, s) : d  h  c
+--
+--    4.16  [Return]  f  []  n : v  (fU, x, s) : d  h   c
+--      =>  [Return]  f   s  n : v               d  h'  c
+--
+--          [Return]  f   (i',f') : s  v  h  c
+--    ==>         i'  f'            s  v  h  c
 
 runProg     :: String -> String
 compile     :: CoreProgram -> State
@@ -98,6 +111,7 @@ data Instruction = Take Int Int
                  | Cond [Instruction] [Instruction]
                  | Return
                  | Move Int AMode
+                 | PushMarker Int
                  deriving (Eq, Show)
 
 data Op = Add | Sub | Mult | Div | Neg
@@ -136,7 +150,11 @@ type Closure  = ([Instruction], FramePtr)
 
 type ValueStack = [Int]
 
-data Dump = DummyDump
+-- Array of triples containing
+-- the original frame pointer,
+-- the index of the slot to update,
+-- and the old stack.
+type Dump = [(FramePtr, Int, Stack)]
 
 type Heap = U.Heap Frame
 
@@ -204,7 +222,7 @@ compile program
 
 initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
-initialDump        = DummyDump
+initialDump        = []
 compiledPrimitives = [
     ("+", mkOp2 (Op Add)),
     ("-", mkOp2 (Op Sub)),
@@ -230,7 +248,7 @@ compileSC env (name, args, body)
     where
       n = (length args)
       (d', compiledBody) = compileR body newEnv n
-      newEnv = (zip args (map Arg [1..])) ++ env
+      newEnv = (zip args (map mkUpdIndMode [1..])) ++ env
       instructions []   = compiledBody -- CAF optimization
       instructions args = Take d' n : compiledBody
 
@@ -262,7 +280,7 @@ compileR (ELet isRec defns body) env d
         where
           d1 = (d + 1)
           (d', am) = compileA e letEnv d1
-          env' = [(name, mkIndMode d1)] ++ env
+          env' = [(name, mkUpdIndMode d1)] ++ env
 
 compileR (EAp e1 e2) env d = (d2, Push am : is)
   where
@@ -293,9 +311,8 @@ compileB (EAp (EAp (EVar "<") e1) e2) env d cont = (d2, i2)
 compileB e env d cont = (d', Push (Code cont) : is)
   where (d', is) = (compileR e env d)
 
-mkIndMode :: Int -> AMode
-mkIndMode n = Code [Enter (Arg n)]
-
+mkUpdIndMode :: Int -> AMode
+mkUpdIndMode n = Code [PushMarker n, Enter (Arg n)]
 
 eval state
   = state : restStates
@@ -344,6 +361,11 @@ step ((PushV FramePtr:instr), (FrameInt n), stack, vstack, dump, heap, cstore, s
 step ((PushV (IntVConst n):instr), fptr, stack, vstack, dump, heap, cstore, stats)
   = (instr, fptr, stack, n : vstack, dump, heap, cstore, stats)
 
+step ([Return], fptr, [], n : vstack, (fU, x, s):dump, heap, cstore, stats)
+  = ([Return], fptr, s, n : vstack, dump, heap', cstore, stats)
+    where
+      heap' = fUpdate heap fU x (intCode, FrameInt n)
+
 step ([Return], fptr, ((i', f'):stack), vstack, dump, heap, cstore, stats)
   = (i', f', stack, vstack, dump, heap, cstore, stats)
 
@@ -363,6 +385,10 @@ step ([Cond i1 i2], fptr, stack, 0:vstack, dump, heap, cstore, stats)
 
 step ([Cond i1 i2], fptr, stack, n:vstack, dump, heap, cstore, stats)
   = (i2, fptr, stack, vstack, dump, heap, cstore, stats)
+
+step ((PushMarker x):instr, fptr, stack, vstack, dump, heap, cstore, stats)
+  = (instr, fptr, [], vstack, dump', heap, cstore, stats)
+    where dump' = (fptr, x, stack) : dump
 
 step state = error ("No match found for state: " ++ iDisplay (showState state))
 
@@ -442,6 +468,7 @@ showInstruction d (Return)  = (iStr "Return")
 showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
 showInstruction d (Move i a) = iConcat[ iStr "Move ", iNum i, iStr " ", (showArg d a) ]
 showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
+showInstruction d (PushMarker x) = (iStr "PushMarker ") `iAppend` (iNum x)
 
 showInstruction d (Cond i1 i2)
   = iConcat [ iStr "Cond [",
