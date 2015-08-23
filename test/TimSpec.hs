@@ -48,8 +48,8 @@ spec = do
 
     it "implements efficient comparisons" $ do
       let
-        program = "fib n = if (n < 2) 1 (fib (n - 1) + fib (n - 2)) ; \n\
-                  \main = fib 5                                         "
+        program = "fib n = if (n < 2) n (fib (n - 1) + fib (n - 2)) ; \n\
+                  \main = fib 6                                         "
         states = eval $ compile $ parse program
         (instr, fptr, stack, vstack, dump, heap, cstore, stats) = last states
       (head vstack) `shouldBe` 8
