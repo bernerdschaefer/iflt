@@ -1,3 +1,3 @@
 module GM where
 import Language
-import Utils
+import qualified Utils as U
