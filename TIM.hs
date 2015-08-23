@@ -279,8 +279,8 @@ compileR (ELet isRec defns body) env d
       makeMove (d, env) (name, e) = ((d', env'), Move d1 am)
         where
           d1 = (d + 1)
-          (d', am) = compileA e letEnv d1
-          env' = [(name, mkUpdIndMode d1)] ++ env
+          (d', am) = compileU e d1 letEnv d1
+          env' = [(name, mkIndMode d1)] ++ env
 
 compileR (EAp e1 e2) env d = (d2, Push am : is)
   where
@@ -297,6 +297,11 @@ compileA (EVar v) env d = (d, U.aLookup env v (error ("unknown variable " ++ v))
 compileA (ENum n) env d = (d, IntConst n)
 compileA e        env d = (d', Code is)
   where (d', is) = compileR e env d
+
+compileU (ENum n) u env d = (d, IntConst n)
+compileU e u env d = (d', Code (PushMarker u : is))
+  where
+    (d', is) = (compileR e env d)
 
 compileB :: CoreExpr -> CompilerEnv -> Int -> [Instruction] -> (Int, [Instruction])
 compileB (ENum n) env d cont = (d, PushV (IntVConst n) : cont)
@@ -475,6 +480,7 @@ showInstruction d (Return)  = (iStr "Return")
 showInstruction d (Op op)   = (iStr "Op ") `iAppend` (iStr (show op))
 showInstruction d (Move i a) = iConcat[ iStr "Move ", iNum i, iStr " ", (showArg d a) ]
 showInstruction d (PushV FramePtr) = (iStr "PushV FramePtr")
+showInstruction d (PushV i) = (iStr "PushV ") `iAppend` (iStr (show i))
 showInstruction d (PushMarker x) = (iStr "PushMarker ") `iAppend` (iNum x)
 
 showInstruction d (Cond i1 i2)
