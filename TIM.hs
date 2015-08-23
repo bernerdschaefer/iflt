@@ -101,7 +101,7 @@ data Instruction = Take Int Int
                  deriving (Eq, Show)
 
 data Op = Add | Sub | Mult | Div | Neg
-        | Gr | GrEq | Lt | LtEq | Eq | NotEq
+        | Gt | GtEq | Lt | LtEq | Eq | NotEq
         deriving (Eq, Show)
 
 data AMode = Arg Int
@@ -154,6 +154,8 @@ fAlloc heap xs = (heap', FrameAddr addr)
 fGet heap (FrameAddr addr) n = f !! (n-1)
                                where f = U.hLookup heap addr
 
+fGet heap a n = error ("Unknown address " ++ (show a))
+
 fUpdate heap (FrameAddr addr) n closure
   = U.hUpdate heap addr newFrame
     where
@@ -204,16 +206,21 @@ initialArgStack    = [([], FrameNull)]
 initialValueStack  = []
 initialDump        = DummyDump
 compiledPrimitives = [
-    ("+", mkArithOp (Op Add)),
-    ("-", mkArithOp (Op Sub)),
-    ("*", mkArithOp (Op Mult)),
-    ("/", mkArithOp (Op Div)),
-    ("<", mkArithOp (Op Lt))
+    ("+", mkOp2 (Op Add)),
+    ("-", mkOp2 (Op Sub)),
+    ("*", mkOp2 (Op Mult)),
+    ("/", mkOp2 (Op Div)),
+    ("<", mkOp2 (Op Lt)),
+    (">", mkOp2 (Op Gt)),
+    (">=", mkOp2 (Op GtEq)),
+    ("<=", mkOp2 (Op LtEq)),
+    ("==", mkOp2 (Op Eq)),
+    ("~=", mkOp2 (Op NotEq))
   ]
 
-mkArithOp (Op op) = [ Take 2 2,
-                      Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
-                      Enter (Arg 2) ]
+mkOp2 (Op op) = [ Take 2 2,
+                  Push (Code [ Push (Code [Op op, Return]), Enter (Arg 1) ]),
+                  Enter (Arg 2) ]
 
 type CompilerEnv = [(Name, AMode)]
 
@@ -340,21 +347,16 @@ step ((PushV (IntVConst n):instr), fptr, stack, vstack, dump, heap, cstore, stat
 step ([Return], fptr, ((i', f'):stack), vstack, dump, heap, cstore, stats)
   = (i', f', stack, vstack, dump, heap, cstore, stats)
 
-step ((Op Add:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
-  = (instr, fptr, stack, (n1 + n2):vstack, dump, heap, cstore, stats)
-
-step ((Op Mult:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
-  = (instr, fptr, stack, (n1 * n2):vstack, dump, heap, cstore, stats)
-
-step ((Op Sub:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
-  = (instr, fptr, stack, (n1 - n2):vstack, dump, heap, cstore, stats)
-
-step ((Op Div:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
-  = (instr, fptr, stack, (n1 `div` n2):vstack, dump, heap, cstore, stats)
-
-step ((Op Lt:instr), fptr, stack, (n1:n2:vstack), dump, heap, store, stats)
-  = (instr, fptr, stack, isLt:vstack, dump, heap, store, stats)
-    where isLt | (n2 < n1) = 1 | otherwise = 0
+step ((Op op:instr), fptr, stack, (n1:n2:vstack), dump, heap, cstore, stats)
+  = (instr, fptr, stack, (applyOp2 op n1 n2):vstack, dump, heap, cstore, stats)
+    where
+      applyOp2 Mult n1 n2 = n1 * n2
+      applyOp2 Add n1 n2  = n1 + n2
+      applyOp2 Sub n1 n2  = n1 - n2
+      applyOp2 Div n1 n2  = n1 `div` n2
+      applyOp2 Lt n1 n2   = isLt where isLt | (n1 < n2) = 0 | otherwise = 1
+      applyOp2 Gt n1 n2   = isGt where isGt | (n1 > n2) = 0 | otherwise = 1
+      applyOp2 Eq n1 n2   = isEq where isEq | (n2 == n1) = 0 | otherwise = 1
 
 step ([Cond i1 i2], fptr, stack, 0:vstack, dump, heap, cstore, stats)
   = (i1, fptr, stack, vstack, dump, heap, cstore, stats)
