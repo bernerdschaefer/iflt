@@ -25,7 +25,7 @@ type Literal = Int
 
 data PrimOp = Add | Sub
 
-type Constr = Int
+type Constr = Name
 
 type Alts = [Alt]
 data Alt  = AlgAlt Constr Vars StgExpr
@@ -46,13 +46,15 @@ data UpdateFlag = Updateable | NonUpdateable
 --
 
 pprStgProgram :: StgProgram -> Iseq
-pprStgProgram program
-  = iInterleave (iConcat [iStr ";", iNewline]) (map pprBind program)
+pprStgProgram program = pprBinds program
+
+pprBinds binds
+  = iInterleave (iConcat [iStr ";", iNewline]) (map pprBind binds)
 
 pprBind :: Bind -> Iseq
 pprBind (name, lf)
   = iConcat [ iStr name
-            , iStr " "
+            , iStr " = "
             , pprLambdaForm lf ]
 
 pprLambdaForm :: Lambda -> Iseq
@@ -62,22 +64,59 @@ pprLambdaForm (free, u, vars, body)
             , pprUpdateFlag u
             , iStr " "
             , pprVars vars
-            , iStr " -> "
+            , iStr " ->"
             , iNewline
             , iStr "  "
             , iIndent (pprStgExpr body) ]
 
-pprStgExpr (Literal i)
-  = pprLiteral i
+pprStgExpr (Literal i) = pprLiteral i
+
+pprStgExpr (Let isrec binds body)
+  = iConcat [ iStr keyword
+            , iNewline
+            , iStr "  "
+            , iIndent (pprBinds binds)
+            , iNewline
+            , iStr "in "
+            , pprStgExpr body ]
+    where
+      keyword | isrec == True = "letrec"
+              | otherwise     = "let"
+
+pprStgExpr (Case expr alts)
+  = iConcat [ iStr "case "
+            , pprStgExpr expr
+            , iStr " of"
+            , iNewline
+            , iStr "  "
+            , iIndent (pprStgAlts alts) ]
+
 pprStgExpr (App f args)
-  = iConcat [ iStr "("
-            , iStr f
+  = iConcat [ iStr f
             , iStr " "
-            , iInterleave (iStr " ") (map pprAtom args)
-            , iStr ")" ]
+            , pprAtoms args ]
+
+pprStgExpr (ConApp constr args)
+  = iConcat [ iStr constr
+            , iStr " "
+            , pprAtoms args ]
 
 pprUpdateFlag Updateable    = iStr "u"
 pprUpdateFlag NonUpdateable = iStr "n"
+
+pprStgAlts alts = iInterleave (iStr ";" `iAppend` iNewline) (map pprAlt alts)
+
+pprAlt (AlgAlt constr vars expr)
+  = iConcat [ iStr constr
+            , iStr " "
+            , pprVars vars
+            , iStr " -> "
+            , pprStgExpr expr ]
+
+pprAtoms args
+  = iConcat [ iStr "{"
+            , iInterleave (iStr " ") (map pprAtom args)
+            , iStr "}" ]
 
 pprAtom (VarArg v) = pprVar v
 pprAtom (LitArg i) = pprLiteral i
