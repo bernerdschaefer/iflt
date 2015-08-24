@@ -1,4 +1,4 @@
-module GM where
+module STG where
 import Language
 import qualified Utils as U
 
@@ -8,17 +8,17 @@ data State = State { code :: Code
                    , upds :: [UpdateFrame]
                    , heap :: Heap
                    , env :: [(Name, Addr)]
-                   } deriving (Show)
+                   }
 
-data UpdateFrame  = DummyFrame deriving (Show)
-data Continuation = DummyContinuation deriving (Show)
+data UpdateFrame  = DummyFrame
+data Continuation = DummyContinuation
 
 data Closure = Closure { vars :: [Name]
                        , updateable :: Bool
                        , xs :: [Int]
                        , body :: Code
                        , varValues :: [Int]
-                       } deriving (Show)
+                       }
 
 type GlobalEnv = [(Name, Addr)]
 type LocalEnv = [(Name, Value)]
@@ -33,13 +33,54 @@ type Code = [Instruction]
 
 data Value = Addr
            | IntConst Int
-           deriving (Show)
 
-data Instruction = Eval CoreExpr LocalEnv
+data Instruction = Eval StgExpr LocalEnv
                  | Enter Addr
                  | ReturnCon Int [Value]
                  | ReturnInt Int
-                 deriving (Show)
+
+type Program = Binds
+
+type Binds = [Bind]
+
+type Bind = (Name, Lambda)
+
+data UpdateFlag = Updateable | NonUpdateable
+
+data StgExpr = Let Binds StgExpr
+             | Letrec Binds StgExpr
+             | Case StgExpr Alts
+             | App Var Atoms
+             | ConApp Constr Atoms
+             | PrimApp PrimOp Atoms
+             | Literal Int
+
+type Vars = [Var]
+type Var = Name
+
+type Literal = Int
+
+data PrimOp = Add | Sub
+
+type Constr = Int
+
+type Atoms = [Atom]
+
+type Alts = [Alt]
+
+data Alt = AlgAlt Constr Vars StgExpr
+         | PrimAlt Literal StgExpr
+         | NormAlt Var StgExpr
+         | DefaultAlt StgExpr
+
+data Atom = VarArg Name
+          | LitArg Literal
+
+type Lambda = ( [Name]     -- free variables
+                , UpdateFlag     -- updateable
+                , [Name]   -- arguments
+                , StgExpr -- body
+                )
 
 vals local global [] = []
 vals local global (x:xs) = (val local global x) : (vals local global xs)
@@ -49,7 +90,7 @@ val local global (EVar v)
   = U.aLookup local v (U.aLookup global v (error ("unknown variable " ++ v)))
 
 initialState
-  = State { code = [Eval (EVar "main") []]
+  = State { code = [Eval (App "main" []) []]
           , args = []
           , rets = []
           , upds = []
