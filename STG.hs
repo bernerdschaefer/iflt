@@ -6,7 +6,7 @@ import qualified Utils as U
 -- Syntax
 --
 
-type Program = Binds
+type StgProgram = Binds
 
 type Binds = [Bind]
 type Bind  = (Name, Lambda)
@@ -34,12 +34,62 @@ data Alt  = AlgAlt Constr Vars StgExpr
           | DefaultAlt StgExpr
 
 type Atoms = [Atom]
-data Atom  = VarArg Name
+data Atom  = VarArg Var
            | LitArg Literal
 
 type Lambda = (Vars, UpdateFlag, Vars, StgExpr)
 
 data UpdateFlag = Updateable | NonUpdateable
+
+--
+-- Printing
+--
+
+pprStgProgram :: StgProgram -> Iseq
+pprStgProgram program
+  = iInterleave (iConcat [iStr ";", iNewline]) (map pprBind program)
+
+pprBind :: Bind -> Iseq
+pprBind (name, lf)
+  = iConcat [ iStr name
+            , iStr " "
+            , pprLambdaForm lf ]
+
+pprLambdaForm :: Lambda -> Iseq
+pprLambdaForm (free, u, vars, body)
+  = iConcat [ pprVars free
+            , iStr " "
+            , pprUpdateFlag u
+            , iStr " "
+            , pprVars vars
+            , iStr " -> "
+            , iNewline
+            , iStr "  "
+            , iIndent (pprStgExpr body) ]
+
+pprStgExpr (Literal i)
+  = pprLiteral i
+pprStgExpr (App f args)
+  = iConcat [ iStr "("
+            , iStr f
+            , iStr " "
+            , iInterleave (iStr " ") (map pprAtom args)
+            , iStr ")" ]
+
+pprUpdateFlag Updateable    = iStr "u"
+pprUpdateFlag NonUpdateable = iStr "n"
+
+pprAtom (VarArg v) = pprVar v
+pprAtom (LitArg i) = pprLiteral i
+
+pprLiteral i = (iNum i) `iAppend` (iStr "#")
+
+pprVars vars
+  = iConcat [ iStr "{"
+            , iInterleave (iStr ",") (map pprVar vars)
+            , iStr "}" ]
+
+pprVar var = (iStr var)
 
 --
 -- Evaluation
