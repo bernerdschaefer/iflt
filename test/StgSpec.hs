@@ -29,3 +29,9 @@ spec = do
 
       printed `shouldBe` "case xs {} of\n\
                          \  Nil {} -> Nil {}"
+
+  describe "transformCoreExpr" $ do
+    it "handles applications" $ do
+      let expr = (EAp (EAp (EAp (EAp (EVar "g") (ENum 9)) (ENum 1)) (ENum 2)) (ENum 3))
+          transformed = transformCoreExpr expr
+      putStrLn $ iDisplay $ pprStgExpr transformed

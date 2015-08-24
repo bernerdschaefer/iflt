@@ -131,6 +131,30 @@ pprVars vars
 pprVar var = (iStr var)
 
 --
+-- Transformation from Core to STG
+--
+
+transformCoreExpr expr@(EAp _ _)
+  = transformCoreApp f args
+    where (f, args) = flattenAp expr
+
+transformCoreApp :: Var -> [CoreExpr] -> StgExpr
+transformCoreApp f args
+  = (App f atoms)
+    where
+      atoms = map atom args
+      atom (EVar v) = VarArg v
+      atom (ENum n) = LitArg n
+      atom _        = error "not an atom"
+
+flattenAp :: CoreExpr -> (Var, [CoreExpr])
+flattenAp expr
+  = flatten expr []
+    where
+      flatten (EVar v)    args = (v, args)
+      flatten (EAp f arg) args = flatten f (arg:args)
+
+--
 -- Evaluation
 --
 
