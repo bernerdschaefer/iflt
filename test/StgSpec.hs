@@ -35,3 +35,14 @@ spec = do
       let expr = (EAp (EAp (EAp (EAp (EVar "g") (ENum 9)) (ENum 1)) (ENum 2)) (ENum 3))
           transformed = transformCoreExpr expr
       putStrLn $ iDisplay $ pprStgExpr transformed
+
+    it "handles cases" $ do
+      let (_, _, expr) = (head program)
+          transformed = transformCoreProgram program
+          program = parse "map f xs = case xs of\n\
+                          \             <1>      -> Pack{1,0};\n\
+                          \             <2> y ys -> Pack{2,2} (f y) (map f ys)"
+
+      print expr
+      putStrLn $ iDisplay $ pprExpr expr
+      putStrLn $ iDisplay $ pprStgProgram transformed

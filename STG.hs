@@ -14,6 +14,7 @@ type Bind  = (Name, Lambda)
 data StgExpr = Let IsRec Binds StgExpr
              | Case StgExpr Alts
              | App Var Atoms
+             | PackApp Pack Atoms
              | ConApp Constr Atoms
              | PrimApp PrimOp Atoms
              | Literal Int
@@ -26,9 +27,11 @@ type Literal = Int
 data PrimOp = Add | Sub
 
 type Constr = Name
+data Pack   = Pack Int Int
 
 type Alts = [Alt]
 data Alt  = AlgAlt Constr Vars StgExpr
+          | PackAlt Int Vars StgExpr
           | PrimAlt Literal StgExpr
           | NormAlt Var StgExpr
           | DefaultAlt StgExpr
@@ -101,6 +104,18 @@ pprStgExpr (ConApp constr args)
             , iStr " "
             , pprAtoms args ]
 
+pprStgExpr (PackApp pack args)
+  = iConcat [ pprPack pack
+            , iStr " "
+            , pprAtoms args ]
+
+pprPack (Pack tag arity)
+  = iConcat [ iStr "Pack{"
+            , iNum tag
+            , iStr ","
+            , iNum arity
+            , iStr "}" ]
+
 pprUpdateFlag Updateable    = iStr "u"
 pprUpdateFlag NonUpdateable = iStr "n"
 
@@ -109,6 +124,14 @@ pprStgAlts alts = iInterleave (iStr ";" `iAppend` iNewline) (map pprAlt alts)
 pprAlt (AlgAlt constr vars expr)
   = iConcat [ iStr constr
             , iStr " "
+            , pprVars vars
+            , iStr " -> "
+            , pprStgExpr expr ]
+
+pprAlt (PackAlt tag vars expr)
+  = iConcat [ iStr "<"
+            , iNum tag
+            , iStr "> "
             , pprVars vars
             , iStr " -> "
             , pprStgExpr expr ]
@@ -134,9 +157,30 @@ pprVar var = (iStr var)
 -- Transformation from Core to STG
 --
 
+transformCoreProgram :: CoreProgram -> StgProgram
+transformCoreProgram program
+  = map transformCoreScDefn program
+
+transformCoreScDefn :: CoreScDefn -> Bind
+transformCoreScDefn (name, args, body)
+  = (name, ([], NonUpdateable, args, transformCoreExpr body'))
+    where
+      body' = body
+
 transformCoreExpr expr@(EAp _ _)
   = transformCoreApp f args
     where (f, args) = flattenAp expr
+
+transformCoreExpr (ECase e alts)
+  = (Case (transformCoreExpr e) (transformCoreAlts alts))
+
+transformCoreExpr (EVar v)
+  = transformCoreApp v []
+
+transformCoreExpr (EConstr tag arity@0)
+  = PackApp (Pack tag arity) []
+
+transformCoreExpr e = error ("unknown expression " ++ (show e))
 
 transformCoreApp :: Var -> [CoreExpr] -> StgExpr
 transformCoreApp f args
@@ -145,14 +189,54 @@ transformCoreApp f args
       atoms = map atom args
       atom (EVar v) = VarArg v
       atom (ENum n) = LitArg n
-      atom _        = error "not an atom"
+      atom e        = error ("not an atom: " ++ (show e))
 
 flattenAp :: CoreExpr -> (Var, [CoreExpr])
 flattenAp expr
   = flatten expr []
     where
-      flatten (EVar v)    args = (v, args)
-      flatten (EAp f arg) args = flatten f (arg:args)
+      flatten (EVar v)      args = (v, args)
+      flatten (EAp f arg)   args = flatten f (arg:args)
+      flatten expr          args = error ("unknown expr " ++ (show expr))
+
+transformCoreAlts :: [CoreAlt] -> Alts
+transformCoreAlts coreAlts
+  = alts
+    where
+      alts = map transformCoreAlt coreAlts
+
+transformCoreAlt :: CoreAlt -> Alt
+transformCoreAlt (tag, vars, body)
+  = PackAlt tag vars (transformCoreExpr body)
+
+-- nameFunArgs names non-atomic function arguments
+-- by introducing a let expression.
+-- coreExprToANF :: CoreExpr -> CoreExpr
+-- 
+-- coreExprToANF (EAp f a)
+--   = expr
+--     where
+--       (f', a', defns) = coreAppToANF f a
+--       expr []    = EAp f' a'
+--       epxr defns = ELet False defns (EAp f' a')
+-- 
+-- coreExprToANF e = e
+-- 
+-- coreAppToANF :: CoreExpr -> CoreExpr -> (CoreExpr, CoreExpr, [(Name, CoreExpr)])
+-- coreAppToANF f a
+--   = (f', a', defns)
+--     where
+--       f' = coreExprToANF f
+--       (a', defns) = coreAppToANF a 
+-- 
+-- coreArgToANF :: CoreExpr -> [(Name, CoreExpr)] -> (CoreExpr, [(Name, CoreExpr)])
+-- coreArgToANF (EVar v) defns = (EVar v, defns)
+-- coreArgToANF (ENum n) defns = (ENum n, defns)
+-- coreArgToANF expr defns
+--   = (EVar new_id, defn : defns)
+--     where
+--       new_id = "*id" ++ (show (length defns)) ++ "*"
+--       defn = (new_id, expr)
 
 --
 -- Evaluation

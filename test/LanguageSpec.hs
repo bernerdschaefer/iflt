@@ -16,6 +16,13 @@ spec = do
 
       program `shouldNotBe` []
 
+    it "parses stuff" $ do
+      let program = parse "map f xs = case xs of\n\
+                          \             <1>      -> Pack{1,0};\n\
+                          \             <2> y ys -> Pack{2,2} (f y) (map f ys)"
+      program `shouldNotBe` []
+      print program
+
   describe "clex" $ do
     it "handles multicharacter tokens" $ do
       let tokens = clex "== ~= >= <= ->"
