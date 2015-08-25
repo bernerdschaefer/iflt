@@ -261,8 +261,8 @@ compileR (EAp (EAp (EAp (EVar "if") n) e1) e2) env d
       (d2, i2) = compileR e2 env d1
       (d3, am) = compileA n env d2
 
-compileR (EAp (EAp (EVar "<") e1) e2) env d = compileB (EAp (EAp (EVar "<") e1) e2) env d [Return]
-compileR (EAp (EAp (EVar "+") e1) e2) env d = compileB (EAp (EAp (EVar "+") e1) e2) env d [Return]
+compileR expr@(EAp (EAp (EVar "<") e1) e2) env d = compileB expr env d [Return]
+compileR expr@(EAp (EAp (EVar "+") e1) e2) env d = compileB expr env d [Return]
 
 compileR (ENum n) env d = (d', is)
   where (d', is) = compileB (ENum n) env d [Return]
