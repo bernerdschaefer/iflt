@@ -39,13 +39,12 @@ coreApToANF' f (EVar v) defns
     where
       (f', defns') = coreExprToANF' f defns
 coreApToANF' f a defns
-  = (AnfAp f1 a1, defns3)
+  = (AnfAp f' (AnfVar id), defns3)
     where
       id = newId defns
-      a1 = (AnfVar id)
-      defns1 = (id, a2) : defns
-      (f1, defns2) = coreExprToANF' f defns1
-      (a2, defns3) = coreExprToANF' a defns2
+      defns1 = (id, a') : defns
+      (f', defns2) = coreExprToANF' f defns1
+      (a', defns3) = coreExprToANF' a defns2
 
 newId :: [Defn] -> Id
 newId defns = "**x" ++ (show (length defns)) ++ "**"
@@ -64,7 +63,3 @@ data AnfArg
 anfArgToCore :: AnfArg -> CoreExpr
 anfArgToCore (AnfNum i) = ENum i
 anfArgToCore (AnfVar v) = EVar v
-
--- coreExprToANF (EAp (EVar "f") (ENum 1))
--- coreExprToANF (EAp (EVar "f") (EAp (EVar "f") (ENum 2)))
--- coreExprToANF (EAp (EVar "f") (EAp (EAp (EVar "f") (ENum 2)) (EAp (EVar "f") (ENum 2))))
