@@ -165,7 +165,7 @@ transformCoreScDefn :: CoreScDefn -> Bind
 transformCoreScDefn (name, args, body)
   = (name, ([], NonUpdateable, args, transformCoreExpr body'))
     where
-      body' = body
+      body' = coreExprToANF body
 
 transformCoreExpr expr@(EAp _ _)
   = transformCoreApp f args
@@ -209,35 +209,41 @@ transformCoreAlt :: CoreAlt -> Alt
 transformCoreAlt (tag, vars, body)
   = PackAlt tag vars (transformCoreExpr body)
 
--- nameFunArgs names non-atomic function arguments
--- by introducing a let expression.
--- coreExprToANF :: CoreExpr -> CoreExpr
--- 
--- coreExprToANF (EAp f a)
---   = expr
---     where
---       (f', a', defns) = coreAppToANF f a
---       expr []    = EAp f' a'
---       epxr defns = ELet False defns (EAp f' a')
--- 
--- coreExprToANF e = e
--- 
--- coreAppToANF :: CoreExpr -> CoreExpr -> (CoreExpr, CoreExpr, [(Name, CoreExpr)])
--- coreAppToANF f a
---   = (f', a', defns)
---     where
---       f' = coreExprToANF f
---       (a', defns) = coreAppToANF a 
--- 
--- coreArgToANF :: CoreExpr -> [(Name, CoreExpr)] -> (CoreExpr, [(Name, CoreExpr)])
--- coreArgToANF (EVar v) defns = (EVar v, defns)
--- coreArgToANF (ENum n) defns = (ENum n, defns)
--- coreArgToANF expr defns
---   = (EVar new_id, defn : defns)
---     where
---       new_id = "*id" ++ (show (length defns)) ++ "*"
---       defn = (new_id, expr)
+coreExprToANF :: CoreExpr -> CoreExpr
+coreExprToANF expr
+  = anfExpr
+    where
+      maybeLet e []    = e
+      maybeLet e defns = ELet nonRecursive defns e
 
+      (expr', defns) = coreExprToANF' expr []
+
+      anfExpr = maybeLet expr' defns
+
+coreExprToANF' :: CoreExpr -> [CoreDefn] -> (CoreExpr, [CoreDefn])
+coreExprToANF' expr@(EAp f a) defns = coreApToANF f a defns
+coreExprToANF' e              defns = (e, defns)
+
+coreApToANF :: CoreExpr -> CoreExpr -> [CoreDefn] -> (CoreExpr, [CoreDefn])
+
+coreApToANF f (ENum n) defns
+  = (EAp f' (ENum n), defns')
+    where (f', defns') = coreExprToANF' f defns
+
+coreApToANF f (EVar v) defns
+  = (EAp f' (EVar v), defns')
+    where (f', defns') = coreExprToANF' f defns
+
+coreApToANF f a defns
+  = (EAp f' (EVar id), defns3)
+    where
+      id = newId defns
+      defns1 = (id, a') : defns
+      (f', defns2) = coreExprToANF' f defns1
+      (a', defns3) = coreExprToANF' a defns2
+
+newId :: [CoreDefn] -> Name
+newId defns = "**x" ++ (show (length defns)) ++ "**"
 --
 -- Evaluation
 --

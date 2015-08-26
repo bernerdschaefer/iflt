@@ -22,6 +22,8 @@ data Expr a
 -- use Name as the binding type for Expr
 type CoreExpr = Expr Name
 
+type CoreDefn = (Name, CoreExpr)
+
 -- A variable's name is a list of characters
 type Name = String
 
