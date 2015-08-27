@@ -44,17 +44,10 @@ coreApToANF f (EVar v) defns
 coreApToANF f a defns
   = (EAp f' (EVar id), defns3)
     where
-      id = newId defns
+      id = newId "anf" defns
       defns1 = (id, a') : defns
       (f', defns2) = coreExprToANF' f defns1
       (a', defns3) = coreExprToANF' a defns2
 
-newId :: [CoreDefn] -> Name
-newId defns = "**x" ++ (show (length defns)) ++ "**"
-
---
--- Saturate constructors and primitive operations
---
-
-saturateCoreProgram :: CoreProgram -> (Name -> Int) -> CoreProgram
-saturateCoreProgram program arityOf = program
+newId :: String -> [CoreDefn] -> Name
+newId prefix defns = "**" ++ prefix ++ (show (length defns)) ++ "**"
