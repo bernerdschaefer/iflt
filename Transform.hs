@@ -26,7 +26,7 @@ coreExprToANF expr
 
 coreExprToANF' :: CoreExpr -> [CoreDefn] -> (CoreExpr, [CoreDefn])
 
-coreExprToANF' expr@(ELet False letDefns body) defns
+coreExprToANF' (ELet False letDefns body) defns
   = (ELet False letDefns' body', defns'')
     where
       (letDefns', defns') = coreDefnsToANF letDefns defns
@@ -34,6 +34,12 @@ coreExprToANF' expr@(ELet False letDefns body) defns
 
 coreExprToANF' expr@(EAp f a) defns
   = coreApToANF f a defns
+
+coreExprToANF' expr@(ECase e alters) defns
+  = (ECase e' alters', defns')
+    where
+      (e', defns') = coreExprToANF' e defns
+      alters' = map coreAltToANF alters
 
 coreExprToANF' e defns = (e, defns)
 
@@ -71,6 +77,12 @@ coreDefnToANF (name, body) defns
     where
       (body', defns') = coreExprToANF' body defns
 
+coreAltToANF :: CoreAlt -> CoreAlt
+coreAltToANF (tag, vars, e)
+  = (tag, vars, e')
+    where
+      e' = coreExprToANF e
+
 newId :: String -> [CoreDefn] -> Name
 newId prefix defns = "**" ++ prefix ++ (show (length defns)) ++ "**"
 
@@ -79,3 +91,6 @@ example1
 
 example2
   = pprint . coreProgramToANF $ parse "main = let x = f 1 (f 2) in x"
+
+example3
+  = pprint . coreProgramToANF $ parse "main = case (f 1 (f 2)) of <1> -> g 1 (f 2)"
