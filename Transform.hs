@@ -26,8 +26,8 @@ coreExprToANF expr
 
 coreExprToANF' :: CoreExpr -> [CoreDefn] -> (CoreExpr, [CoreDefn])
 
-coreExprToANF' (ELet False letDefns body) defns
-  = (ELet False letDefns' body', defns'')
+coreExprToANF' (ELet isRec letDefns body) defns
+  = (ELet isRec letDefns' body', defns'')
     where
       (letDefns', defns') = coreDefnsToANF letDefns defns
       (body', defns'') = coreExprToANF' body defns'
