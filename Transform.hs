@@ -26,6 +26,12 @@ coreExprToANF expr
 
 coreExprToANF' :: CoreExpr -> [CoreDefn] -> (CoreExpr, [CoreDefn])
 
+coreExprToANF' expr@(ELet False letDefns body) defns
+  = (ELet False letDefns' body', defns'')
+    where
+      (letDefns', defns') = coreDefnsToANF letDefns defns
+      (body', defns'') = coreExprToANF' body defns'
+
 coreExprToANF' expr@(EAp f a) defns
   = coreApToANF f a defns
 
@@ -49,5 +55,27 @@ coreApToANF f a defns
       (f', defns2) = coreExprToANF' f defns1
       (a', defns3) = coreExprToANF' a defns2
 
+coreDefnsToANF :: [CoreDefn] -> [CoreDefn] -> ([CoreDefn], [CoreDefn])
+coreDefnsToANF letDefns defns
+  = coreDefnsToANF' letDefns ([], defns)
+
+coreDefnsToANF' [] accum = accum
+coreDefnsToANF' (letDefn:letDefns) (accumLetDefns, defns)
+  = coreDefnsToANF' letDefns (letDefn' : accumLetDefns, defns')
+    where
+      (letDefn', defns') = coreDefnToANF letDefn defns
+
+coreDefnToANF :: CoreDefn -> [CoreDefn] -> (CoreDefn, [CoreDefn])
+coreDefnToANF (name, body) defns
+  = ((name, body'), defns')
+    where
+      (body', defns') = coreExprToANF' body defns
+
 newId :: String -> [CoreDefn] -> Name
 newId prefix defns = "**" ++ prefix ++ (show (length defns)) ++ "**"
+
+example1
+  = pprint . coreProgramToANF $ parse "main = f 1 (f 2 (f 3))"
+
+example2
+  = pprint . coreProgramToANF $ parse "main = let x = f 1 (f 2) in x"
