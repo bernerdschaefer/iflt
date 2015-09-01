@@ -32,14 +32,19 @@ coreExprToANF' (ELet False letDefns body) defns
       (letDefns', defns') = coreDefnsToANF letDefns defns
       (body', defns'') = coreExprToANF' body defns'
 
-coreExprToANF' expr@(EAp f a) defns
-  = coreApToANF f a defns
+coreExprToANF' (ELam vars body) defns
+  = (ELam vars body', defns)
+    where
+      body' = coreExprToANF body
 
 coreExprToANF' expr@(ECase e alters) defns
   = (ECase e' alters', defns')
     where
       (e', defns') = coreExprToANF' e defns
       alters' = map coreAltToANF alters
+
+coreExprToANF' expr@(EAp f a) defns
+  = coreApToANF f a defns
 
 coreExprToANF' e defns = (e, defns)
 
@@ -94,3 +99,6 @@ example2
 
 example3
   = pprint . coreProgramToANF $ parse "main = case (f 1 (f 2)) of <1> -> g 1 (f 2)"
+
+example4
+  = pprint . coreProgramToANF $ parse "main = (\\ x . f 1 (f 2)) (f 2)"
