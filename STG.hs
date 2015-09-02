@@ -1,5 +1,6 @@
 module STG where
 import Language
+import Transform
 import qualified Utils as U
 
 --
@@ -159,43 +160,54 @@ pprVar var = (iStr var)
 
 transformCoreProgram :: CoreProgram -> StgProgram
 transformCoreProgram program
-  = map transformCoreScDefn program
+  = map transformCoreScDefn program'
+    where program' = coreProgramToANF program
 
 transformCoreScDefn :: CoreScDefn -> Bind
 transformCoreScDefn (name, args, body)
-  = (name, ([], NonUpdateable, args, transformCoreExpr body'))
-    where
-      body' = coreExprToANF body
+  = (name, ([], NonUpdateable, args, transformCoreExpr body))
 
 transformCoreExpr expr@(EAp _ _)
-  = transformCoreApp f args
+  = transformCoreAp f args
     where (f, args) = flattenAp expr
 
 transformCoreExpr (ECase e alts)
   = (Case (transformCoreExpr e) (transformCoreAlts alts))
 
-transformCoreExpr (EVar v)
-  = transformCoreApp v []
+transformCoreExpr var@(EVar v)
+  = transformCoreAp var []
 
 transformCoreExpr (EConstr tag arity@0)
   = PackApp (Pack tag arity) []
 
+transformCoreExpr (ELet isRec defns body)
+  = (Let isRec defns' (transformCoreExpr body))
+    where
+      defns' = map transformCoreDefn defns
+      transformCoreDefn (name, e)
+        = (name, ([], NonUpdateable, [], transformCoreExpr e))
+
 transformCoreExpr e = error ("unknown expression " ++ (show e))
 
-transformCoreApp :: Var -> [CoreExpr] -> StgExpr
-transformCoreApp f args
-  = (App f atoms)
-    where
-      atoms = map atom args
-      atom (EVar v) = VarArg v
-      atom (ENum n) = LitArg n
-      atom e        = error ("not an atom: " ++ (show e))
+transformCoreAp :: CoreExpr -> [CoreExpr] -> StgExpr
 
-flattenAp :: CoreExpr -> (Var, [CoreExpr])
+transformCoreAp (EVar v) args = App v (atoms args)
+
+transformCoreAp constr@(EConstr tag arity) args
+  = PackApp (Pack tag arity) (atoms args)
+
+atoms args = map atom args
+  where
+    atom (EVar v) = VarArg v
+    atom (ENum n) = LitArg n
+    atom e        = error ("not an atom: " ++ (show e))
+
+flattenAp :: CoreExpr -> (CoreExpr, [CoreExpr])
 flattenAp expr
   = flatten expr []
     where
-      flatten (EVar v)      args = (v, args)
+      flatten constr@(EConstr _ _) args = (constr, args)
+      flatten var@(EVar _)         args = (var, args)
       flatten (EAp f arg)   args = flatten f (arg:args)
       flatten expr          args = error ("unknown expr " ++ (show expr))
 
