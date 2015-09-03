@@ -19,16 +19,17 @@ data StgExpr = Let IsRec Binds StgExpr
              | ConApp Constr Atoms
              | PrimApp PrimOp Atoms
              | Literal Int
+             deriving (Show)
 
 type Vars = [Var]
 type Var = Name
 
 type Literal = Int
 
-data PrimOp = Add | Sub
+data PrimOp = Add | Sub deriving (Show)
 
 type Constr = Name
-data Pack   = Pack Int Int
+data Pack   = Pack Int Int deriving (Show)
 
 type Alts = [Alt]
 data Alt  = AlgAlt Constr Vars StgExpr
@@ -36,14 +37,16 @@ data Alt  = AlgAlt Constr Vars StgExpr
           | PrimAlt Literal StgExpr
           | NormAlt Var StgExpr
           | DefaultAlt StgExpr
+          deriving (Show)
 
 type Atoms = [Atom]
 data Atom  = VarArg Var
            | LitArg Literal
+           deriving (Show)
 
 type Lambda = (Vars, UpdateFlag, Vars, StgExpr)
 
-data UpdateFlag = Updateable | NonUpdateable
+data UpdateFlag = Updateable | NonUpdateable deriving (Show)
 
 --
 -- Printing
@@ -177,6 +180,8 @@ transformCoreExpr (ECase e alts)
 transformCoreExpr var@(EVar v)
   = transformCoreAp var []
 
+transformCoreExpr (ENum n) = (Literal n)
+
 transformCoreExpr (EConstr tag arity@0)
   = PackApp (Pack tag arity) []
 
@@ -239,7 +244,7 @@ data Continuation = DummyContinuation
 data Closure = Closure { vars :: [Name]
                        , updateable :: Bool
                        , xs :: [Int]
-                       , body :: Code
+                       , body :: StgExpr
                        , varValues :: [Int]
                        }
 
@@ -254,21 +259,26 @@ type Addr = U.Addr
 
 type Code = [Instruction]
 
-data Value = Addr
+data Value = AddrValue Addr
            | IntConst Int
+           deriving (Show)
 
 data Instruction = Eval StgExpr LocalEnv
                  | Enter Addr
                  | ReturnCon Int [Value]
                  | ReturnInt Int
+                 deriving (Show)
 
-
+vals :: LocalEnv -> GlobalEnv -> Atoms -> [Value]
 vals local global [] = []
 vals local global (x:xs) = (val local global x) : (vals local global xs)
 
-val local global (ENum n) = IntConst n
-val local global (EVar v)
-  = U.aLookup local v (U.aLookup global v (error ("unknown variable " ++ v)))
+val :: LocalEnv -> GlobalEnv -> Atom -> Value
+val local global (LitArg n) = IntConst n
+val local global (VarArg v)
+  = U.aLookup local v lookupGlobal
+    where
+      lookupGlobal = AddrValue $ U.aLookup global v (error ("unknown variable " ++ v))
 
 initialState
   = State { code = [Eval (App "main" []) []]
@@ -278,3 +288,37 @@ initialState
           , heap = U.hInitial
           , env  = []
           }
+
+step state@State{code = [Eval (App f xs) []]}
+  = state { code = [Enter addr]
+          , args = (vals [] (env state) xs) ++ (args state)
+          }
+  where
+    addr = U.aLookup (env state) f (error "not in environment")
+
+step state@State{code = [Enter addr]}
+  = state { code = [Eval e localEnv], args = args' }
+    where
+      closure = U.hLookup (heap state) addr
+      e = (body closure)
+      args' = (args state)
+      localEnv = []
+
+step State{code = code} = (error ("unknown expression " ++ (show code)))
+
+--
+-- Compilation
+--
+
+compileStgProgram :: StgProgram -> State -> State
+
+compileStgProgram [] state = state
+
+compileStgProgram (bind:binds) state
+  = compileStgProgram binds state'
+    where
+      state' = state { heap = heap', env = env' }
+      (name, (_, _, _, body)) = bind
+      closure = Closure { updateable = False, body = body }
+      (heap', addr) = U.hAlloc (heap state) closure
+      env' = (name, addr) : (env state)

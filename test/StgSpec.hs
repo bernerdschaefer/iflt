@@ -46,3 +46,12 @@ spec = do
       print expr
       putStrLn $ iDisplay $ pprExpr expr
       putStrLn $ iDisplay $ pprStgProgram transformed
+
+  describe "step" $ do
+    it "works for simple cases" $ do
+      let transformed = transformCoreProgram program
+          program = parse "main = 1"
+          compiled = compileStgProgram transformed initialState
+
+      print $ args $ step $ step $ step compiled
+      print $ code $ step $ step compiled
