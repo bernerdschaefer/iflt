@@ -47,11 +47,11 @@ spec = do
       putStrLn $ iDisplay $ pprExpr expr
       putStrLn $ iDisplay $ pprStgProgram transformed
 
-  describe "step" $ do
+  describe "eval" $ do
     it "works for simple cases" $ do
       let transformed = transformCoreProgram program
           program = parse "main = 1"
           compiled = compileStgProgram transformed initialState
+          state = last (eval compiled)
 
-      print $ args $ step $ step $ step compiled
-      print $ code $ step $ step $ step compiled
+      (code state) `shouldBe` (ReturnInt 1)

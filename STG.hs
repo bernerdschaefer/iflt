@@ -19,16 +19,17 @@ data StgExpr = Let IsRec Binds StgExpr
              | ConApp Constr Atoms
              | PrimApp PrimOp Atoms
              | Literal Int
+             deriving (Eq)
 
 type Vars = [Var]
 type Var = Name
 
 type Literal = Int
 
-data PrimOp = Add | Sub deriving (Show)
+data PrimOp = Add | Sub deriving (Eq, Show)
 
 type Constr = Name
-data Pack   = Pack Int Int deriving (Show)
+data Pack   = Pack Int Int deriving (Eq, Show)
 
 type Alts = [Alt]
 data Alt  = AlgAlt Constr Vars StgExpr
@@ -36,16 +37,16 @@ data Alt  = AlgAlt Constr Vars StgExpr
           | PrimAlt Literal StgExpr
           | NormAlt Var StgExpr
           | DefaultAlt StgExpr
-          deriving (Show)
+          deriving (Eq, Show)
 
 type Atoms = [Atom]
 data Atom  = VarArg Var
            | LitArg Literal
-           deriving (Show)
+           deriving (Eq, Show)
 
 type Lambda = (Vars, UpdateFlag, Vars, StgExpr)
 
-data UpdateFlag = Updateable | NonUpdateable deriving (Show)
+data UpdateFlag = Updateable | NonUpdateable deriving (Eq, Show)
 
 --
 -- Printing
@@ -238,10 +239,11 @@ data State = State { code :: Code
                    , upds :: [UpdateFrame]
                    , heap :: Heap
                    , env :: [(Name, Addr)]
+                   , halt :: Bool
                    }
 
 data UpdateFrame  = DummyFrame
-data Continuation = DummyContinuation
+type Continuation = (Alts, LocalEnv)
 
 data Closure = Closure { vars :: [Name]
                        , updateable :: Bool
@@ -261,13 +263,13 @@ type Addr = U.Addr
 
 data Value = AddrValue Addr
            | IntConst Int
-           deriving (Show)
+           deriving (Eq, Show)
 
 data Code = Eval StgExpr LocalEnv
             | Enter Addr
             | ReturnCon Int [Value]
             | ReturnInt Int
-            deriving (Show)
+            deriving (Eq, Show)
 
 vals :: LocalEnv -> GlobalEnv -> Atoms -> [Value]
 vals local global [] = []
@@ -287,7 +289,15 @@ initialState
           , upds = []
           , heap = U.hInitial
           , env  = []
+          , halt = False
           }
+
+eval :: State -> [State]
+eval state
+  = state : (restStates state)
+    where
+      restStates State{halt = True} = []
+      restStates s                  = eval (step s)
 
 step state@State{code = Eval (App f xs) []}
   = state { code = Enter addr
@@ -299,9 +309,6 @@ step state@State{code = Eval (App f xs) []}
 step state@State{code = Eval (Literal n) _}
   = state { code = ReturnInt n }
 
-step state@State{code = ReturnInt n, rets = []}
-  = state
-
 step state@State{code = Enter addr}
   = state { code = Eval e localEnv, args = args' }
     where
@@ -310,7 +317,7 @@ step state@State{code = Enter addr}
       args' = (args state)
       localEnv = []
 
-step State{code = code} = (error ("unknown expression " ++ (show code)))
+step state = state { halt = True }
 
 --
 -- Compilation
