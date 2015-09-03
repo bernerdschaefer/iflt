@@ -257,17 +257,15 @@ type Heap = U.Heap Closure
 
 type Addr = U.Addr
 
-type Code = [Instruction]
-
 data Value = AddrValue Addr
            | IntConst Int
            deriving (Show)
 
-data Instruction = Eval StgExpr LocalEnv
-                 | Enter Addr
-                 | ReturnCon Int [Value]
-                 | ReturnInt Int
-                 deriving (Show)
+data Code = Eval StgExpr LocalEnv
+            | Enter Addr
+            | ReturnCon Int [Value]
+            | ReturnInt Int
+            deriving (Show)
 
 vals :: LocalEnv -> GlobalEnv -> Atoms -> [Value]
 vals local global [] = []
@@ -281,7 +279,7 @@ val local global (VarArg v)
       lookupGlobal = AddrValue $ U.aLookup global v (error ("unknown variable " ++ v))
 
 initialState
-  = State { code = [Eval (App "main" []) []]
+  = State { code = Eval (App "main" []) []
           , args = []
           , rets = []
           , upds = []
@@ -289,15 +287,15 @@ initialState
           , env  = []
           }
 
-step state@State{code = [Eval (App f xs) []]}
-  = state { code = [Enter addr]
+step state@State{code = Eval (App f xs) []}
+  = state { code = Enter addr
           , args = (vals [] (env state) xs) ++ (args state)
           }
   where
     addr = U.aLookup (env state) f (error "not in environment")
 
-step state@State{code = [Enter addr]}
-  = state { code = [Eval e localEnv], args = args' }
+step state@State{code = Enter addr}
+  = state { code = Eval e localEnv, args = args' }
     where
       closure = U.hLookup (heap state) addr
       e = (body closure)
@@ -319,6 +317,6 @@ compileStgProgram (bind:binds) state
     where
       state' = state { heap = heap', env = env' }
       (name, (_, _, _, body)) = bind
-      closure = Closure { updateable = False, body = body }
+      closure = Closure { vars = [], updateable = False, xs = [], body = body, varValues = []}
       (heap', addr) = U.hAlloc (heap state) closure
       env' = (name, addr) : (env state)
