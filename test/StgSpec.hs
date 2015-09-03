@@ -54,4 +54,4 @@ spec = do
           compiled = compileStgProgram transformed initialState
 
       print $ args $ step $ step $ step compiled
-      print $ code $ step $ step compiled
+      print $ code $ step $ step $ step compiled

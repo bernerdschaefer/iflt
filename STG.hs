@@ -296,6 +296,12 @@ step state@State{code = Eval (App f xs) []}
   where
     addr = U.aLookup (env state) f (error "not in environment")
 
+step state@State{code = Eval (Literal n) _}
+  = state { code = ReturnInt n }
+
+step state@State{code = ReturnInt n, rets = []}
+  = state
+
 step state@State{code = Enter addr}
   = state { code = Eval e localEnv, args = args' }
     where
