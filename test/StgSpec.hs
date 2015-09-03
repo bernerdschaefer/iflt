@@ -55,3 +55,11 @@ spec = do
           state = last (eval compiled)
 
       (code state) `shouldBe` (ReturnInt 1)
+
+    it "handles application" $ do
+      let transformed = transformCoreProgram program
+          program = parse "f x = x ; main = f 2"
+          compiled = compileStgProgram transformed initialState
+          state = last (eval compiled)
+
+      (code state) `shouldBe` (ReturnInt 2)

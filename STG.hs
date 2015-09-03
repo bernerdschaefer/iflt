@@ -245,11 +245,11 @@ data State = State { code :: Code
 data UpdateFrame  = DummyFrame
 type Continuation = (Alts, LocalEnv)
 
-data Closure = Closure { vars :: [Name]
+data Closure = Closure { vars :: [Name]     -- free variables
                        , updateable :: Bool
-                       , xs :: [Int]
+                       , xs :: [Var]        -- arguments
                        , body :: StgExpr
-                       , varValues :: [Int]
+                       , varValues :: [Int] -- values of free variables
                        }
 
 type GlobalEnv = [(Name, Addr)]
@@ -299,12 +299,15 @@ eval state
       restStates State{halt = True} = []
       restStates s                  = eval (step s)
 
-step state@State{code = Eval (App f xs) []}
-  = state { code = Enter addr
-          , args = (vals [] (env state) xs) ++ (args state)
-          }
-  where
-    addr = U.aLookup (env state) f (error "not in environment")
+step state@State{code = Eval (App f xs) localEnv}
+  = stepApp (val localEnv (env state) (VarArg f))
+    where
+      stepApp (IntConst n)
+        = state { code = Eval (Literal n) [] }
+      stepApp (AddrValue addr)
+        = state { code = Enter addr
+                , args = (vals localEnv (env state) xs) ++ (args state)
+                }
 
 step state@State{code = Eval (Literal n) _}
   = state { code = ReturnInt n }
@@ -314,8 +317,8 @@ step state@State{code = Enter addr}
     where
       closure = U.hLookup (heap state) addr
       e = (body closure)
-      args' = (args state)
-      localEnv = []
+      args' = drop (length (xs closure)) (args state)
+      localEnv = zip (xs closure) (args state)
 
 step state = state { halt = True }
 
@@ -331,7 +334,12 @@ compileStgProgram (bind:binds) state
   = compileStgProgram binds state'
     where
       state' = state { heap = heap', env = env' }
-      (name, (_, _, _, body)) = bind
-      closure = Closure { vars = [], updateable = False, xs = [], body = body, varValues = []}
+      (name, (_, _, args, body)) = bind
+      closure = Closure { vars = []
+                        , updateable = False
+                        , xs = args
+                        , body = body
+                        , varValues = []
+                        }
       (heap', addr) = U.hAlloc (heap state) closure
       env' = (name, addr) : (env state)
