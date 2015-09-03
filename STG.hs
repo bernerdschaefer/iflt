@@ -19,7 +19,6 @@ data StgExpr = Let IsRec Binds StgExpr
              | ConApp Constr Atoms
              | PrimApp PrimOp Atoms
              | Literal Int
-             deriving (Show)
 
 type Vars = [Var]
 type Var = Name
@@ -51,6 +50,9 @@ data UpdateFlag = Updateable | NonUpdateable deriving (Show)
 --
 -- Printing
 --
+
+instance Show StgExpr where
+  show e = iDisplay (pprStgExpr e)
 
 pprStgProgram :: StgProgram -> Iseq
 pprStgProgram program = pprBinds program
