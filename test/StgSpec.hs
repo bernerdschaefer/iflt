@@ -63,3 +63,13 @@ spec = do
           state = last (eval compiled)
 
       (code state) `shouldBe` (ReturnInt 2)
+
+    it "handles let" $ do
+      let transformed = transformCoreProgram $ parse program
+          program = "f x = let y = 3 in g y ;     \n\
+                    \g x = x ;                    \n\
+                    \main = f 5                     "
+          compiled = compileStgProgram transformed initialState
+          state = last (eval compiled)
+
+      (code state) `shouldBe` (ReturnInt 3)

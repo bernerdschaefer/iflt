@@ -238,7 +238,7 @@ data State = State { code :: Code
                    , rets :: [Continuation]
                    , upds :: [UpdateFrame]
                    , heap :: Heap
-                   , env :: [(Name, Addr)]
+                   , env  :: GlobalEnv
                    , halt :: Bool
                    }
 
@@ -252,8 +252,9 @@ data Closure = Closure { vars :: [Name]     -- free variables
                        , varValues :: [Int] -- values of free variables
                        }
 
-type GlobalEnv = [(Name, Addr)]
-type LocalEnv = [(Name, Value)]
+type Env       = [(Name, Value)]
+type GlobalEnv = Env
+type LocalEnv  = Env
 
 type Stack = [Value]
 
@@ -266,7 +267,7 @@ data Value = AddrValue Addr
            deriving (Eq, Show)
 
 data Code = Eval StgExpr LocalEnv
-            | Enter Addr
+            | Enter Value
             | ReturnCon Int [Value]
             | ReturnInt Int
             deriving (Eq, Show)
@@ -280,7 +281,7 @@ val local global (LitArg n) = IntConst n
 val local global (VarArg v)
   = U.aLookup local v lookupGlobal
     where
-      lookupGlobal = AddrValue $ U.aLookup global v (error ("unknown variable " ++ v))
+      lookupGlobal = U.aLookup global v (error ("unknown variable " ++ v))
 
 initialState
   = State { code = Eval (App "main" []) []
@@ -305,14 +306,14 @@ step state@State{code = Eval (App f xs) localEnv}
       stepApp (IntConst n)
         = state { code = Eval (Literal n) [] }
       stepApp (AddrValue addr)
-        = state { code = Enter addr
+        = state { code = Enter (AddrValue addr)
                 , args = (vals localEnv (env state) xs) ++ (args state)
                 }
 
 step state@State{code = Eval (Literal n) _}
   = state { code = ReturnInt n }
 
-step state@State{code = Enter addr}
+step state@State{code = Enter (AddrValue addr)}
   = state { code = Eval e localEnv, args = args' }
     where
       closure = U.hLookup (heap state) addr
@@ -334,6 +335,12 @@ compileStgProgram (bind:binds) state
   = compileStgProgram binds state'
     where
       state' = state { heap = heap', env = env' }
+      (heap', env') = bindToClosure bind (heap state) (env state)
+
+bindToClosure :: Bind -> Heap -> Env -> (Heap, Env)
+bindToClosure bind heap env
+  = (heap', env')
+    where
       (name, (_, _, args, body)) = bind
       closure = Closure { vars = []
                         , updateable = False
@@ -341,5 +348,5 @@ compileStgProgram (bind:binds) state
                         , body = body
                         , varValues = []
                         }
-      (heap', addr) = U.hAlloc (heap state) closure
-      env' = (name, addr) : (env state)
+      (heap', addr) = U.hAlloc heap closure
+      env' = (name, (AddrValue addr)) : env
