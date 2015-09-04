@@ -313,6 +313,13 @@ step state@State{code = Eval (App f xs) localEnv}
 step state@State{code = Eval (Literal n) _}
   = state { code = ReturnInt n }
 
+step state@State{code = Eval (Let isRec binds e) localEnv, heap = heap}
+  = state { code = Eval e localEnv', heap = heap' }
+    where
+      letEnv | isRec == True = localEnv' ++ localEnv
+             | otherwise     = localEnv
+      (heap', localEnv') = bindsToClosures binds heap letEnv
+
 step state@State{code = Enter (AddrValue addr)}
   = state { code = Eval e localEnv, args = args' }
     where
@@ -329,13 +336,15 @@ step state = state { halt = True }
 
 compileStgProgram :: StgProgram -> State -> State
 
-compileStgProgram [] state = state
+compileStgProgram program state@State{ heap = heap, env = env }
+  = state { heap = heap', env = env' }
+    where (heap', env') = bindsToClosures program heap env
 
-compileStgProgram (bind:binds) state
-  = compileStgProgram binds state'
-    where
-      state' = state { heap = heap', env = env' }
-      (heap', env') = bindToClosure bind (heap state) (env state)
+bindsToClosures :: Binds -> Heap -> Env -> (Heap, Env)
+bindsToClosures [] heap env = (heap, env)
+bindsToClosures (bind:binds) heap env
+  = bindsToClosures binds heap' env'
+    where (heap', env') = bindToClosure bind heap env
 
 bindToClosure :: Bind -> Heap -> Env -> (Heap, Env)
 bindToClosure bind heap env
