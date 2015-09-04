@@ -1,6 +1,7 @@
 module STG where
 import Language
 import Transform
+import Data.List
 import qualified Utils as U
 
 --
@@ -173,14 +174,23 @@ transformCoreProgram program
 
 transformCoreScDefn :: CoreScDefn -> Bind
 transformCoreScDefn (name, args, body)
-  = (name, (freeVars, NonUpdateable, args, body'))
+  = (name, (freeVars \\ args, NonUpdateable, args, body'))
     where (body', freeVars) = transformCoreExpr body
 
 transformCoreExpr :: CoreExpr -> (StgExpr, FreeVars)
 
 transformCoreExpr expr@(EAp _ _)
-  = (transformCoreAp f args, [])
-    where (f, args) = flattenAp expr
+  = (ap, freeVars f args)
+    where
+      (f, args) = flattenAp expr
+      ap = transformCoreAp f args
+
+      freeVars (EVar f) args = f : freeVarsInArgs args
+      freeVars _ args        = freeVarsInArgs args
+
+      freeVarsInArgs [] = []
+      freeVarsInArgs ((EVar v) : vs) = v : freeVarsInArgs vs
+      freeVarsInArgs (_ : vs)        = freeVarsInArgs vs
 
 transformCoreExpr (ECase e alts)
   = (Case e' alts', freeVars ++ altFreeVars)
@@ -189,17 +199,18 @@ transformCoreExpr (ECase e alts)
       (alts', altFreeVars) = transformCoreAlts alts
 
 transformCoreExpr var@(EVar v)
-  = (transformCoreAp var [], [])
+  = (transformCoreAp var [], [v])
 
-transformCoreExpr (ENum n) = (Literal n, [])
+transformCoreExpr (ENum n)
+  = (Literal n, [])
 
 transformCoreExpr (EConstr tag arity@0)
   = (PackApp (Pack tag arity) [], [])
 
 transformCoreExpr (ELet isRec defns body)
-  = (Let isRec defns' body', [])
+  = (Let isRec defns' body', bodyFreeVars \\ (bindersOf defns))
     where
-      (body', freeVars) = transformCoreExpr body
+      (body', bodyFreeVars) = transformCoreExpr body
       defns' = map transformCoreDefn defns
       transformCoreDefn (name, e)
         = (name, (freeVars, NonUpdateable, [], e'))

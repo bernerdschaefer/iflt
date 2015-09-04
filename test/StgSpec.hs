@@ -47,6 +47,14 @@ spec = do
       putStrLn $ iDisplay $ pprExpr expr
       putStrLn $ iDisplay $ pprStgProgram transformed
 
+    it "handles free variables" $ do
+      let expr = (ELet nonRecursive [("fy", (EAp (EVar "f") (EVar "y")))] (EVar "fy"))
+          (stgExpr, _) = transformCoreExpr expr
+          (Let _ (bind:_) _) = stgExpr
+          (_, (freeVars, _, _, _)) = bind
+
+      freeVars `shouldBe` ["f", "y"]
+
   describe "eval" $ do
     it "works for simple cases" $ do
       let transformed = transformCoreProgram program
