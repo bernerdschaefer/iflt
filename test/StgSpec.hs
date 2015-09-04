@@ -33,7 +33,7 @@ spec = do
   describe "transformCoreExpr" $ do
     it "handles applications" $ do
       let expr = (EAp (EAp (EAp (EAp (EVar "g") (ENum 9)) (ENum 1)) (ENum 2)) (ENum 3))
-          transformed = transformCoreExpr expr
+          (transformed, _) = transformCoreExpr expr
       putStrLn $ iDisplay $ pprStgExpr transformed
 
     it "handles cases" $ do

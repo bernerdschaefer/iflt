@@ -44,7 +44,9 @@ data Atom  = VarArg Var
            | LitArg Literal
            deriving (Eq, Show)
 
-type Lambda = (Vars, UpdateFlag, Vars, StgExpr)
+type FreeVars = [Var]
+
+type Lambda = (FreeVars, UpdateFlag, Vars, StgExpr)
 
 data UpdateFlag = Updateable | NonUpdateable deriving (Eq, Show)
 
@@ -171,29 +173,37 @@ transformCoreProgram program
 
 transformCoreScDefn :: CoreScDefn -> Bind
 transformCoreScDefn (name, args, body)
-  = (name, ([], NonUpdateable, args, transformCoreExpr body))
+  = (name, (freeVars, NonUpdateable, args, body'))
+    where (body', freeVars) = transformCoreExpr body
+
+transformCoreExpr :: CoreExpr -> (StgExpr, FreeVars)
 
 transformCoreExpr expr@(EAp _ _)
-  = transformCoreAp f args
+  = (transformCoreAp f args, [])
     where (f, args) = flattenAp expr
 
 transformCoreExpr (ECase e alts)
-  = (Case (transformCoreExpr e) (transformCoreAlts alts))
+  = (Case e' alts', freeVars ++ altFreeVars)
+    where
+      (e', freeVars) = transformCoreExpr e
+      (alts', altFreeVars) = transformCoreAlts alts
 
 transformCoreExpr var@(EVar v)
-  = transformCoreAp var []
+  = (transformCoreAp var [], [])
 
-transformCoreExpr (ENum n) = (Literal n)
+transformCoreExpr (ENum n) = (Literal n, [])
 
 transformCoreExpr (EConstr tag arity@0)
-  = PackApp (Pack tag arity) []
+  = (PackApp (Pack tag arity) [], [])
 
 transformCoreExpr (ELet isRec defns body)
-  = (Let isRec defns' (transformCoreExpr body))
+  = (Let isRec defns' body', [])
     where
+      (body', freeVars) = transformCoreExpr body
       defns' = map transformCoreDefn defns
       transformCoreDefn (name, e)
-        = (name, ([], NonUpdateable, [], transformCoreExpr e))
+        = (name, (freeVars, NonUpdateable, [], e'))
+          where (e', freeVars) = transformCoreExpr e
 
 transformCoreExpr e = error ("unknown expression " ++ (show e))
 
@@ -219,15 +229,18 @@ flattenAp expr
       flatten (EAp f arg)   args = flatten f (arg:args)
       flatten expr          args = error ("unknown expr " ++ (show expr))
 
-transformCoreAlts :: [CoreAlt] -> Alts
-transformCoreAlts coreAlts
-  = alts
+transformCoreAlts :: [CoreAlt] -> (Alts, FreeVars)
+transformCoreAlts [] = ([], [])
+transformCoreAlts (alt : alts)
+  = (alt' : alts', freeVars ++ freeVars')
     where
-      alts = map transformCoreAlt coreAlts
+      (alt', freeVars) = transformCoreAlt alt
+      (alts', freeVars') = transformCoreAlts alts
 
-transformCoreAlt :: CoreAlt -> Alt
+transformCoreAlt :: CoreAlt -> (Alt, FreeVars)
 transformCoreAlt (tag, vars, body)
-  = PackAlt tag vars (transformCoreExpr body)
+  = (PackAlt tag vars body', freeVars)
+    where (body', freeVars) = transformCoreExpr body
 
 --
 -- Evaluation
