@@ -344,6 +344,12 @@ step state@State{code = Eval (Let isRec binds e) localEnv, heap = heap}
              | otherwise     = localEnv
       (heap', localEnv') = bindsToClosures binds heap letEnv
 
+step state@State{code = Eval (Case e alts) localEnv, rets = rets}
+  = state { code = Eval e localEnv, rets = (alts, localEnv) : rets }
+
+step state@State{code = Eval (PackApp (Pack c _) xs) localEnv, env = env }
+  = state { code = ReturnCon c (vals localEnv env xs) }
+
 step state@State{code = Enter (AddrValue addr)}
   = state { code = Eval e localEnv, args = args' }
     where
@@ -351,6 +357,15 @@ step state@State{code = Enter (AddrValue addr)}
       e = (body closure)
       args' = drop (length (xs closure)) (args state)
       localEnv = zip (xs closure) (args state)
+
+step state@State{ code = ReturnCon c ws, rets = (alts, localEnv) : rets }
+  = state { code = Eval e localEnv', rets = rets }
+    where
+      localEnv' = (zip vars ws) ++ localEnv
+      (Just (PackAlt _ vars e)) = find findAlt alts
+
+      findAlt (PackAlt tag _ _) = tag == c
+      findAlt _                 = False
 
 step state = state { halt = True }
 

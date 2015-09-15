@@ -81,3 +81,32 @@ spec = do
           state = last (eval compiled)
 
       (code state) `shouldBe` (ReturnInt 3)
+
+    it "handles case" $ do
+      let transformed = transformCoreProgram $ parse program
+          program = "Nil = Pack{1, 0};              \n\
+                    \True  = Pack{3, 0};            \n\
+                    \False = Pack{4, 0};            \n\
+                    \isNil x = case x of            \n\
+                    \            <1>      -> True ; \n\
+                    \            <2> y ys -> False ;\n\
+                    \main = isNil Nil               "
+          compiled = compileStgProgram transformed initialState
+          state = last (eval compiled)
+
+      (code state) `shouldBe` (ReturnCon 3 [])
+
+    it "handles case" $ do
+      let transformed = transformCoreProgram $ parse program
+          program = "Nil   = Pack{1, 0};            \n\
+                    \Cons  = Pack{2, 2};            \n\
+                    \True  = Pack{3, 0};            \n\
+                    \False = Pack{4, 0};            \n\
+                    \isNil x = case x of            \n\
+                    \            <1>      -> True ; \n\
+                    \            <2> y ys -> False ;\n\
+                    \main = isNil (Pack{2,2} True Nil)   "
+          compiled = compileStgProgram transformed initialState
+          state = last (eval compiled)
+
+      (code state) `shouldBe` (ReturnCon 4 [])
