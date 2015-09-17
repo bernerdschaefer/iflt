@@ -213,7 +213,7 @@ transformCoreExpr (ELet isRec defns body)
       (body', bodyFreeVars) = transformCoreExpr body
       defns' = map transformCoreDefn defns
       transformCoreDefn (name, e)
-        = (name, (freeVars, NonUpdateable, [], e'))
+        = (name, (freeVars, Updateable, [], e'))
           where (e', freeVars) = transformCoreExpr e
 
 transformCoreExpr e = error ("unknown expression " ++ (show e))
